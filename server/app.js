@@ -61,7 +61,7 @@ const MongoClient    = require('mongodb').MongoClient;
 const Questions = require('./controllers/Questions.js');
 const Tables    = require('./controllers/Tables.js');
 const Game      = require('./controllers/Game.js');
-const Players   = require('./controllers/players.js');
+const Players   = require('./controllers/Players.js');
 
 
 io.set('origins', '*:*');
