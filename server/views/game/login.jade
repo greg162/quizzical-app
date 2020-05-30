@@ -1,0 +1,26 @@
+div(class="col-12")
+  include ./../_notifications.jade
+
+div(class="col-sm-12")
+  div(v-if="player.avatar")
+    img(v-bind:src="loadIcon(player.avatar)",class="mx-auto d-block mb-3")
+  div(v-else)
+    img(src="/img/avatars/avatar_blank.svg",class="mx-auto d-block mb-3")
+
+div(class="col-sm-3")
+div(class="col-sm-6")
+  div(class="form-group")
+    select(v-model="player.avatar",class="form-control from-control-lg")
+      option(
+        v-for="avatarNum in Array(110).keys()",
+        v-bind:value="avatarNum +1"
+        v-bind:style="{'background-image': loadIcon(avatarNum +1 )}"
+        ) Avatar {{ avatarNum + 1 }}
+  div(class="form-group")
+    input(v-model="player.name",type="text",placeholder="Enter your name",class="form-control from-control-lg")
+  div(class="form-group")
+    input(v-model="roomId",type="text",placeholder="Enter the room ID",class="form-control from-control-lg")
+  div(class="form-group")
+    input(v-model="adminPassword",type="text",placeholder="Are you the admin? Enter the password here.",class="form-control from-control-lg")
+
+    button(v-on:click="joinGame({})", class="btn btn-primary mt-2") Join Game

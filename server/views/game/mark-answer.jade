@@ -1,0 +1,11 @@
+div(class="current-question-admin",v-if="currentQuestion")
+  h3 {{ currentQuestion.question }}
+  div(class="question-correct-container",v-for="subPlayer in players" v-if="!subPlayer.isAdmin")
+      div(class="form-group")
+        label(v-bind:for="'player-'+player.uuid") {{ subPlayer.name }}
+        div(class="input-group")
+          input(type="email",class="form-control",v-bind:id="'player-'+subPlayer.uuid", v-bind:value="subPlayer.currentAnswerText" aria-describedby="emailHelp",placeholder="No Answer yet...", disabled)
+          div(class="input-group-append",id="button-addon4")
+            button(class="btn btn-warning",type="button",v-on:click="markAnswer(false, subPlayer.uuid, subPlayer.currentQuestionID);") Wrong
+            button(class="btn btn-success",type="button",v-on:click="markAnswer(true, subPlayer.uuid, subPlayer.currentQuestionID);") Correct
+  button(class="btn btn-primary", type="button", v-on:click="loadNextQuestion()") Next Question

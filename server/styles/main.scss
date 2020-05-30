@@ -1,0 +1,70 @@
+
+
+@import url('https://fonts.googleapis.com/css?family=Titillium+Web:400,900&display=swap');
+@import url('https://fonts.googleapis.com/css?family=Rajdhani:400,500,600,700&display=swap');
+
+
+$font-primary: 'Rajdhani', sans-serif;
+$font-brand: 'Titillium Web', sans-serif;
+
+
+@import "custom";
+@import "~bootstrap/scss/bootstrap";
+
+
+.game-title-container {
+  background-color: $purple;
+  padding: 1.25rem;
+  color: $white;
+  border-top-left-radius: $border-radius;
+  border-top-right-radius: $border-radius;
+}
+
+.brand-text {
+  font-family: $font-brand;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.card {
+  box-shadow: 0 0 40px 0 rgba(94,92,154,.06);
+}
+
+.player-list li {
+  list-style:none;
+  background-image:none;
+  background-repeat:none;
+  background-position:0;
+}
+
+.player-list-avatar {
+  width:30px;
+}
+
+.btn, .badge-primary, .badge-success {
+  color: $white;
+}
+
+#i-messages {
+  height: 400px;
+  overflow-x: hidden;
+  overflow-y: scroll;
+  background-color: $gray-200;
+}
+
+.message-container {
+  background-color: $gray-400;
+  color: $white;
+  margin-top: 10px;
+  border-top-left-radius: 5px;
+  border-bottom-right-radius: 5px;
+}
+
+.message-container img {
+  height: 30px;
+}
+
+.message-container .message-text {
+  margin-left: 10px;
+  font-size: 15px;
+}

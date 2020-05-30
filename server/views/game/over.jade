@@ -1,0 +1,6 @@
+h1 🎉 Game Over Man! Game Over! 🎉
+h3 Final Scores
+ul(v-for="subPlayer in players")
+  li {{ subPlayer.name }} 
+    span(v-if="subPlayer.isAdmin") - Host
+    span(v-else) - Score: {{ subPlayer.score }}

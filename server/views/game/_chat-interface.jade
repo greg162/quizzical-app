@@ -1,0 +1,18 @@
+p Logged in players
+ul(v-for="subPlayer in players",class="player-list")
+  li 
+    img(v-bind:src="loadIcon(subPlayer.avatar)",class="player-list-avatar")
+    {{ subPlayer.name }} 
+    span(v-if="subPlayer.isAdmin",class="badge badge-primary")  👔
+    span(v-else,class="badge badge-primary") {{ subPlayer.score }}
+
+div(class="chat-container")
+  div(class="input-group mb-3")
+    input(v-model="message",type="text", class="form-control",placeholder="Message text...")
+    div(class="input-group-append")
+      button(v-on:click="sendMessage()", class="btn btn-primary") ✒️
+
+  div(id="i-messages")
+    div(v-for="remoteMessage in messages",class="message-container")
+      img(v-bind:src="loadIcon(remoteMessage.avatar)")
+      span(class="message-text") {{ remoteMessage.text }}

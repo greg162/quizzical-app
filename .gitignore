@@ -1,0 +1,3 @@
+server/node_modules/*
+server/_config.js
+server/package-lock.json

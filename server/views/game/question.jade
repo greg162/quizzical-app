@@ -1,0 +1,20 @@
+div(class="current-question",v-if="currentQuestion")
+  h3 {{ currentQuestion.question }}
+  div(v-if="currentQuestion.marked === true")
+    p {{ usersQuestionAnswer }}
+  div(v-else)
+    div(v-if="currentQuestion.type == 'multiple-choice' ")
+      div(class="btn-group",role="group",aria-label="Your Answer")
+        button(v-if="currentQuestion.answer_1" type="button" v-on:click="submitAnswer(currentQuestion.answer_1)" class="btn btn-secondary") {{ currentQuestion.answer_1 }}
+        button(v-if="currentQuestion.answer_2" type="button" v-on:click="submitAnswer(currentQuestion.answer_2)" class="btn btn-secondary") {{ currentQuestion.answer_2 }}
+        button(v-if="currentQuestion.answer_3" type="button" v-on:click="submitAnswer(currentQuestion.answer_3)" class="btn btn-secondary") {{ currentQuestion.answer_3 }}
+        button(v-if="currentQuestion.answer_4" type="button" v-on:click="submitAnswer(currentQuestion.answer_4)" class="btn btn-secondary") {{ currentQuestion.answer_4 }}
+        button(v-if="currentQuestion.answer_4" type="button" v-on:click="submitAnswer(currentQuestion.answer_4)" class="btn btn-secondary") {{ currentQuestion.answer_5 }}
+        button(v-if="currentQuestion.answer_6" type="button" v-on:click="submitAnswer(currentQuestion.answer_6)" class="btn btn-secondary") {{ currentQuestion.answer_6 }}
+
+    div(v-else-if="currentQuestion.type == 'text' ")
+      input(type="text",v-model="usersQuestionAnswer")
+      button(type="button",v-on:click="submitAnswer(usersQuestionAnswer)",class="btn btn-secondary") Answer!
+
+  div(v-else)
+    h1 We cannot find that question type

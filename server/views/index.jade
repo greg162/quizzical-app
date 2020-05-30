@@ -1,0 +1,44 @@
+extends layout
+
+block content
+
+  div(class="container")
+
+    div(class="card")
+      div(class="game-title-container")
+        h1(class="brand-text") Quizzical
+      div(class="card-body")
+
+        div(id='app')
+
+          div(class="row",v-if="!joinedGame")
+            include ./game/login.jade
+
+          div(v-else,class="row")
+            div(class="col-md-9")
+
+              include ./_notifications.jade
+
+              template(v-if="gameFinished")
+                include ./game/over.jade
+
+              template(v-else-if="gameStarted")
+                div(class="admin-game-template", v-if="player.isAdmin")
+                  include ./game/mark-answer.jade
+
+                //This processes the admin interface!
+                div(class="plaver-game-template",v-else)
+                  include ./game/question.jade
+
+              template(v-else)
+                div(v-if="player.isAdmin")
+                  h3 You can start the game when you're ready by pressing the button below.
+                  button(v-on:click="startGame()",class="btn btn-primary btn-block") START GAME
+                div(v-else)
+                  h1 Welcome to the game!
+                  h3 When everyone has assembled the admin will begin the game.
+            div(class="col-md-3 chat-interface")
+              include ./game/_chat-interface.jade
+
+
+
