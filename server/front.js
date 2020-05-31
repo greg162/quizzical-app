@@ -109,6 +109,8 @@ var app = new Vue({
       if(!this.player.name)   { this.displayError("You must enter your name.\n"); }
       if(!this.player.avatar) { this.displayError("You must select an Avatar.\n"); }
       if(!this.roomId)        { this.displayError("You must enter a room Id.\n"); }
+      this.debug('calling: Join Game');
+
       /*let tableFound = false
       this.tables.forEach(table => {
         if(table.id == tableSent.id) {tableFound = true };
@@ -117,7 +119,7 @@ var app = new Vue({
       if(!this.errors) {
         this.player.table = tableSent;
         socket.emit('join-game', {tableId: 'table_1'/*tableSent.id*/, playerName: this.player.name, roomId: this.roomId, password: this.adminPassword, playerAvatar: this.player.avatar }, function() {
-          console.log('here')
+          this.debug('calling: Successfully attempted to join game');
         });
       }
     },
