@@ -36,6 +36,7 @@ class Players {
       score: 0,
       socket_id: socketId,
       avatar: gameJoinData.playerAvatar,
+      test: "",
     };
 
     console.log(newPlayerObject);
