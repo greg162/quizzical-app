@@ -1,6 +1,6 @@
 p Logged in players
 ul(v-for="subPlayer in players",class="player-list")
-  li 
+  li
     img(v-bind:src="loadIcon(subPlayer.avatar)",class="player-list-avatar")
     {{ subPlayer.name }} 
     span(v-if="subPlayer.isAdmin",class="badge badge-primary")  👔

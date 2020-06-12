@@ -8,11 +8,6 @@ const socket = io();
 const DEBUG = true;
 var _ = require('lodash');
 
-
-import './styles/main.scss';
-
-
-
 var app = new Vue({
   el: '#app',
   data: {
@@ -28,7 +23,9 @@ var app = new Vue({
       table:{},
       isAdmin: false,
     },
-    currentQuestion: {},
+    currentQuestion: {
+      marked: false,
+    },
     usersQuestionAnswer: "",
     joinedGame: false,
     gameStarted: false,
@@ -82,19 +79,26 @@ var app = new Vue({
         isAdmin: false,
         avatar: false,
       };
-      this.currentQuestion = {};
+      this.currentQuestion = {marked: false};
       this.usersQuestionAnswer = "";
       this.joinedGame = false;
       this.gameStarted = false;
       this.gameFinished = false;
       this.players = [];
-      this.roomId = "";
+      //Get the game ID from the URL if it was passed.
+      if(window.location.hash) {
+        var hash = window.location.hash.substring(1);
+        this.roomId = hash;
+      } else {
+        this.roomId = "";
+      }
+  
       this.adminPassword = "";
     },
     sendMessage: function () {
       console.log('Sending message...');
       socket.emit('chat-message', this.message);
-      var message  = _.clone(this.player);
+      var message  = _.cloneDeep(this.player);
       message.text = this.message;
       this.messages.unshift(message);
 
@@ -220,7 +224,7 @@ var app = new Vue({
       this.debug('add-player');
       player.currentAnswerText = "";
       player.currentQuestionID = "";
-      var clonedPlayer = _.clone(player);
+      var clonedPlayer = _.cloneDeep(player);
       this.players.push(clonedPlayer);
     });
     
@@ -232,7 +236,7 @@ var app = new Vue({
       this.player.score             = 0;
 
       this.joinedGame = true;
-      var currentPlayer = _.clone(this.player);
+      var currentPlayer = _.cloneDeep(this.player);
       this.players.push(currentPlayer);
     });
     socket.on('user-admin', (isAdmin) => {
@@ -267,14 +271,16 @@ var app = new Vue({
     //Functions related to the game
     socket.on('load-question', (question) => {
       this.debug('load-question');
-      this.currentQuestion = _.clone(question);
+      this.currentQuestion        = _.cloneDeep(question);
     });
 
     //Functions related to the game
     socket.on('question-marked', (questionId) => {
       this.debug('question-marked');
+      this.debug(questionId);
+      this.debug(this.currentQuestion.id)
       if(questionId == this.currentQuestion.id) {
-        this.currentQuestion.marked = true;
+        this.currentQuestion.marked = 1;
       }
     });
 

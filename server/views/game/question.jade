@@ -1,6 +1,6 @@
 div(class="current-question",v-if="currentQuestion")
-  h3 {{ currentQuestion.question }}
-  div(v-if="currentQuestion.marked === true")
+  h3 {{ currentQuestion.question }} {{ currentQuestion.marked }}
+  div(v-if="currentQuestion.marked")
     p {{ usersQuestionAnswer }}
   div(v-else)
     div(v-if="currentQuestion.type == 'multiple-choice' ")
@@ -13,8 +13,10 @@ div(class="current-question",v-if="currentQuestion")
         button(v-if="currentQuestion.answer_6" type="button" v-on:click="submitAnswer(currentQuestion.answer_6)" class="btn btn-secondary") {{ currentQuestion.answer_6 }}
 
     div(v-else-if="currentQuestion.type == 'text' ")
-      input(type="text",v-model="usersQuestionAnswer")
-      button(type="button",v-on:click="submitAnswer(usersQuestionAnswer)",class="btn btn-secondary") Answer!
+      div(class="input-group mb-3")
+        input(type="text",v-model="usersQuestionAnswer",class="form-control")
+        div(class="input-group-append")
+          button(type="button",v-on:click="submitAnswer(usersQuestionAnswer)",class="btn btn-secondary") Answer!
 
-  div(v-else)
-    h1 We cannot find that question type
+    div(v-else)
+      h1 We cannot find that question type

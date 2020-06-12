@@ -1,4 +1,4 @@
-class tables {
+class TableController {
 
   constructor() {
     this.data = [
@@ -46,4 +46,4 @@ class tables {
   }
 
 }
-module.exports = tables;
+module.exports = TableController;
