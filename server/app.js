@@ -216,7 +216,7 @@ db.once('open', function() {
     socket.on('start-game', async function(startGame) {
       var errors = "";
       if(!startGame)             { errors += "Start socket.game variable not detected!"; }
-      if(!socket.game.id)        { errors += "We could not find the socket.game that should be starting"; }
+      if(!socket.game.game_id)   { errors += "We could not find the game that should be starting"; }
       if(!socket.player.isAdmin) { errors += "You are not an admin player.\h"; }
       if(errors) { socket.emit('general-errors', errors); }
       else {
