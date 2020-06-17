@@ -16,6 +16,12 @@ class GameController {
   }
 
 
+
+  getGameId() {
+    return 'game' + this.game_id;
+  }
+
+
   removePlayer(uuid) {
     this.players.forEach(function(player, index) { 
       if(player.uuid == uuid) {

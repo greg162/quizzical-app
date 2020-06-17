@@ -129,16 +129,11 @@ var GameSchema = new mongoose.Schema({
   admin_socket_id: String,
   players: [PlayerSchema],
   number_of_players: Number,
-  have_admin_player: Boolean,
+  have_admin_player: Number,
 });
 
 GameSchema.loadClass(GameController);
 
-
-
-GameSchema.methods.getGameId = function() {
-  return 'game' + this.id;
-}
 
 GameSchema.methods.getLatest = function() {
   return this.model('Game').findById(this._id);
@@ -164,19 +159,21 @@ db.once('open', function() {
       console.log("Starting game joining process...")
 
       /* --- START AND LEAVE GAME SOCKETS --- */
+      console.log(gameJoinData);
       Game.findOne({ game_id: gameJoinData.roomId } ,function (err, game) {
         if (err) return console.error(err);
         if(game !== null) {
           console.log('Game found!')
           socket.game = game;
           if(tables.tableIdExists(gameJoinData.tableId)) {
-            console.log('User is joining Game ID '+socket.game.getGameId());
-            socket.join(socket.game.getGameId());
+
 
             var errors = socket.game.validateNewPlayer(gameJoinData, socket.game);
             if(errors) {
               socket.emit('login-errors', errors);
             } else {
+              console.log('User is joining Game ID '+socket.game.getGameId());
+              socket.join(socket.game.getGameId());
 
               socket.player = socket.game.createNewPlayer(gameJoinData, socket.id, socket.game);
               socket.game.players.push(socket.player);
@@ -229,25 +226,37 @@ db.once('open', function() {
         socket.game.game_started = 1;
         socket.game.save();
 
-        socket.questions = new QuestionsController(socket.game.questions);
+        if(socket.game.questions) {
+          socket.questions = new QuestionsController(socket.game.questions);
 
-        socket.game.current_question = socket.questions.loadNextQuestion();
-        socket.game.save();
-        socket.to(socket.game.getGameId()).emit('load-question', socket.game.current_question);
-        socket.emit('load-question', socket.game.current_question);
+          socket.game.current_question = socket.questions.loadNextQuestion();
+          socket.game.save();
+          socket.to(socket.game.getGameId()).emit('load-question', socket.game.current_question);
+          socket.emit('load-question', socket.game.current_question);
 
-        //Start the socket.game
-        socket.emit('game-started', true);
-        socket.to(socket.game.getGameId()).emit('game-started', true);
+          //Start the socket.game
+          socket.emit('game-started', true);
+          socket.to(socket.game.getGameId()).emit('game-started', true);
+        } else {
+          if(errors) {
+            socket.emit('general-errors', "Could not find questions");
+          }
+          socket.disconnect()
+        }
       }
 
     });
 
 
-    socket.on('disconnect', () => {
+    socket.on('disconnect', async () => {
       if(socket.player) {
+        //Refresh the game to ensure that we have all the players
+        socket.game =  await Game.findOne({game_id: socket.game.game_id}).exec().catch((err) => {
+          console.log(err)
+        });
         socket.game.removePlayer(socket.player.uuid);
         socket.game.save();
+
         socket.to(socket.game.getGameId()).emit('chat-notifications', socket.player.name+" has left the chat.");
         socket.to(socket.game.getGameId()).emit('remove-player', socket.player.uuid);
       }
