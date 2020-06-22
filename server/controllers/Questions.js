@@ -1,14 +1,18 @@
 var _ = require('lodash');
 
 class QuestionController {
-  constructor(questions) {
-    this.currentQuestion = 0;
-    this.questions   = [];
-    this.questionIds = [];
+  constructor(questions, currentQuestionKey) {
+    this.currentQuestion = currentQuestionKey;
+    this.questions       = [];
+    this.questionIds     = [];
     questions.forEach(question => {
       this.questions[question.id] = question;
       this.questionIds.push(question.id);
     });
+
+    if(typeof this.currentQuestion == 'undefined') {
+      this.currentQuestion = 0;
+    }
 
     this.totalQuestions    = questions.length
     this.noMoreQuestions   = false;

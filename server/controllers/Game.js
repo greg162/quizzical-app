@@ -1,4 +1,8 @@
-const { v4: uuidv4 } = require('uuid');
+var mongoose = require('mongoose');
+const { v4: uuidv4 }   = require('uuid');
+const AnswersController = require('./Answers.js');
+
+
 
 class GameController {
 
@@ -16,27 +20,30 @@ class GameController {
   }
 
 
-
   getGameId() {
     return 'game' + this.game_id;
   }
 
 
-  removePlayer(uuid) {
+  disconnectPlayer(uuid) {
     this.players.forEach(function(player, index) { 
       if(player.uuid == uuid) {
-        this.players.splice(index, 1);
+        this.players[index].connected = 0;
       }
     }.bind(this));
 
   }
 
 
-  givePlayerPoint(uuid, answerCorrect) {
+  givePlayerPoint(playerUuid, answerCorrect, answerText) {
     var returnPlayer = {};
     this.players.forEach(function(player, index) { 
-      if(player.uuid == uuid) {
+      if(player.uuid == playerUuid) {
         returnPlayer = player;
+
+        let answer = new AnswersController(this.current_question.id, player.uuid, answerText, answerCorrect, 1);
+        this.answers.push(answer.answerToObject());
+
         if(answerCorrect) {
           this.players[index].score++;
         }
@@ -45,6 +52,7 @@ class GameController {
 
     return returnPlayer;
   }
+
 
   playerExists(uuid) {
     var playerExists = false;
@@ -57,6 +65,7 @@ class GameController {
 
   }
 
+
   questionExists(id) {
     var questionExists = false;
     this.questions.forEach(function(question) { 
@@ -65,6 +74,17 @@ class GameController {
       }
     });
     return questionExists;
+
+  }
+
+  userAnsweredQuestion(userUuid) {
+    var questionAnswered = false;
+    this.answers.forEach(function(answer) { 
+      if(answer.user_id == userUuid && answer.question_id == this.current_question.id) {
+        questionAnswered = true;
+      }
+    }.bind(this));
+    return questionAnswered;
 
   }
 
@@ -80,6 +100,7 @@ class GameController {
 
   }
 
+
   createNewPlayer(gameJoinData, socketId, game) {
     var playerId        = uuidv4();
     var isAdminPlayer   = Boolean( gameJoinData.password && game.validPassword(gameJoinData.password) );
@@ -90,9 +111,45 @@ class GameController {
       score: 0,
       socket_id: socketId,
       avatar: gameJoinData.playerAvatar,
+      connected: 1,
     };
+    
     return newPlayerObject;
 
+  }
+
+
+  getLatest() {
+    return this.model('Game').findById(this._id);
+  }
+
+
+  findExistingPlayer(uuid, socketId) {
+
+    var newPlayerObject = false;
+    this.players.forEach(function(player, index) {
+      console.log(player.uuid);
+      console.log(uuid);
+      if(player.uuid == uuid) {
+        console.log('player found');
+        newPlayerObject = {
+          uuid: player.uuid,
+          name: player.name,
+          isAdmin: player.isAdmin,
+          score: player.score,
+          socket_id: socketId,
+          avatar: player.avatar,
+          connected: 1,
+        };
+        this.players[index].connected = 1;
+        this.players[index].socket_id = socketId;
+        if(player.isAdmin) {
+          this.admin_socket_id = socketId;
+        }
+      }
+    }.bind(this));
+
+    return newPlayerObject;
   }
 
 

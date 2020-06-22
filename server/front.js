@@ -31,7 +31,7 @@ var app = new Vue({
     gameStarted: false,
     gameFinished:false,
     players: [],
-    roomId: "",
+    gameId: "",
     adminPassword: "",
     tables: [
       {
@@ -81,16 +81,13 @@ var app = new Vue({
       };
       this.currentQuestion = {marked: false};
       this.usersQuestionAnswer = "";
-      this.joinedGame = false;
-      this.gameStarted = false;
+      this.joinedGame   = false;
+      this.gameStarted  = false;
       this.gameFinished = false;
       this.players = [];
       //Get the game ID from the URL if it was passed.
       if(window.location.hash) {
-        var hash = window.location.hash.substring(1);
-        this.roomId = hash;
-      } else {
-        this.roomId = "";
+        this.gameId = window.location.hash.substring(1);
       }
   
       this.adminPassword = "";
@@ -112,7 +109,7 @@ var app = new Vue({
       this.errors = "";
       if(!this.player.name)   { this.displayError("You must enter your name.\n"); }
       if(!this.player.avatar) { this.displayError("You must select an Avatar.\n"); }
-      if(!this.roomId)        { this.displayError("You must enter a room Id.\n"); }
+      if(!this.gameId)        { this.displayError("You must enter a room Id.\n"); }
       this.debug('calling: Join Game');
 
       /*let tableFound = false
@@ -122,10 +119,16 @@ var app = new Vue({
       if(!tableFound) { this.displayError("We could not find that table. Please select again.\n"); }*/
       if(!this.errors) {
         this.player.table = tableSent;
-        socket.emit('join-game', {tableId: 'table_1'/*tableSent.id*/, playerName: this.player.name, roomId: this.roomId, password: this.adminPassword, playerAvatar: this.player.avatar }, function() {
+        socket.emit('join-game', {tableId: 'table_1'/*tableSent.id*/, playerName: this.player.name, gameId: this.gameId, password: this.adminPassword, playerAvatar: this.player.avatar }, function() {
           this.debug('calling: Successfully attempted to join game');
         });
       }
+    },
+    exitGame() {
+      this.resetGameData();
+      this.gameId = "";
+      localStorage.removeItem('currentGame');
+      socket.disconnect();
     },
     startGame() {
       this.errors = "";
@@ -139,9 +142,11 @@ var app = new Vue({
     },
     displayError(errorMessage) {
       this.errors = errorMessage;
+      setTimeout(() => this.errors = "", 1000);
     },
     displaySuccess(successMessage) {
       this.success = successMessage;
+      setTimeout(() => this.success = "", 1000);
     },
     submitAnswer(answerText) {
       if(!answerText) { this.displayError("You must select/enter an answer!\n"); }
@@ -174,6 +179,17 @@ var app = new Vue({
       if(DEBUG) {
         console.log(debugMessage);
       }
+    },
+    addPlayer(player) {
+      var playerFound = false;
+      this.players.forEach(function(subPlayer, index) { 
+        if(subPlayer.uuid == player.uuid) {
+          playerFound = true;
+        }
+      }.bind(this));
+      if(!playerFound) {
+        this.players.push(player);
+      }
     }
   },
   created() {
@@ -183,6 +199,18 @@ var app = new Vue({
     socket.on('connect', () => {
       this.success = "You have successfully connected to the server!";
       //setTimeout(() => this.success = "", 2000);
+      var currentGame = localStorage.getItem('currentGame');
+      if(currentGame) {
+        currentGame = JSON.parse(currentGame);
+        if(currentGame && currentGame.hasOwnProperty('gameId') &&  currentGame.hasOwnProperty('playerUuid') ) {
+          if(currentGame.gameId == this.gameId) {
+            this.debug('join-game');
+            socket.emit('join-game', {tableId: 'table_1'/*tableSent.id*/, playerUuid: currentGame.playerUuid, gameId: this.gameId, }, function() {
+              this.debug('calling: Successfully attempted to join game');
+            });
+          }
+        }
+      }
     });
 
     socket.on('connect_error', (error) => {
@@ -200,6 +228,7 @@ var app = new Vue({
     socket.on('success', (successMessage) => {
       this.displaySuccess(successMessage);
     });
+
     socket.on('login-errors', (errorMessage) => {
       this.debug('login-errors');
       this.displayError(errorMessage);
@@ -214,6 +243,7 @@ var app = new Vue({
       this.debug('chat-notifications');
       this.notifications = notificationMessage;
     });
+
     socket.on('chat-message', (message) => {
       this.debug('chat-message');
       this.messages.unshift(message);
@@ -224,31 +254,26 @@ var app = new Vue({
       this.debug('add-player');
       player.currentAnswerText = "";
       player.currentQuestionID = "";
-      var clonedPlayer = _.cloneDeep(player);
-      this.players.push(clonedPlayer);
+      this.addPlayer(player);
     });
-    
-    socket.on('user-uuid', (uuid) => {
-      this.debug('user-uuid');
-      this.player.uuid              = uuid;
+
+    socket.on('joined-game', (player) => {
+      this.debug('joined-game');
+      this.player.uuid              = player.uuid;
+      this.player.score             = player.score;
+      this.player.score             = player.name;
+      this.player.score             = player.score;
+      this.player.avatar            = player.avatar;
       this.player.currentAnswerText = "";
       this.player.currentQuestionID = "";
-      this.player.score             = 0;
+      this.player.isAdmin           = player.isAdmin;
+      this.joinedGame               = true;
 
-      this.joinedGame = true;
-      var currentPlayer = _.cloneDeep(this.player);
-      this.players.push(currentPlayer);
+      localStorage.setItem('currentGame', JSON.stringify({gameId: this.gameId, playerUuid: player.uuid}));
+      this.addPlayer(player);
     });
-    socket.on('user-admin', (isAdmin) => {
-      this.debug('user-admin');
-      console.log(isAdmin);
-      this.player.isAdmin = isAdmin;
-      this.players.forEach(function(player, index) { 
-        if(player.uuid == this.player.uuid) {
-          this.players[index].isAdmin = isAdmin;
-        }
-      }.bind(this));
-    });
+
+
     socket.on('remove-player', (uuid) => {
       this.debug('remove-player');
       var playerIndex = this.players.findIndex(player => player.uuid === uuid);
@@ -283,7 +308,6 @@ var app = new Vue({
         this.currentQuestion.marked = 1;
       }
     });
-
 
     socket.on('answer-for-marking', (answerForMarking) => {
       this.debug('answer-for-marking');

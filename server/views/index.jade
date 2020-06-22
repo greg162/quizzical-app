@@ -38,7 +38,12 @@ block content
                   h1 Welcome to the game!
                   h3 When everyone has assembled the admin will begin the game.
             div(class="col-md-3 chat-interface")
-              include ./game/_chat-interface.jade
+              div(class="row")
+                div(class="col-md-12")
+                  a(class="btn btn-danger float-right",v-on:click="exitGame()") Quit
+              div(class="row")
+                div(class="col-md-12")
+                  include ./game/_chat-interface.jade
 
 
 

@@ -1,5 +1,5 @@
 div(class="current-question",v-if="currentQuestion")
-  h3 {{ currentQuestion.question }} {{ currentQuestion.marked }}
+  h3 {{ currentQuestion.question }}
   div(v-if="currentQuestion.marked")
     p {{ usersQuestionAnswer }}
   div(v-else)
