@@ -297,6 +297,10 @@ var app = new Vue({
     socket.on('load-question', (question) => {
       this.debug('load-question');
       this.currentQuestion        = _.cloneDeep(question);
+      this.players.forEach(function(player, index) { 
+        this.players[index].scoreUpdated = false;
+        this.players[index].answerAdded = true;
+      }.bind(this));
     });
 
     //Functions related to the game
@@ -315,6 +319,7 @@ var app = new Vue({
         if(player.uuid == answerForMarking.playerUUID) {
           this.players[index].currentAnswerText = answerForMarking.answerText;
           this.players[index].currentQuestionID = answerForMarking.answerId;
+          this.players[index].answerAdded = true;
         }
       }.bind(this));
     });
@@ -324,7 +329,8 @@ var app = new Vue({
       this.players.forEach(function(player, index) { 
         if(player.uuid == playerUUID) {
           console.log(playerScore);
-          this.players[index].score = parseInt(playerScore);
+          this.players[index].score        = parseInt(playerScore);
+          this.players[index].scoreUpdated = true;
           if(this.player.isAdmin) {
             this.players[index].currentAnswerText = "";
             this.players[index].currentQuestionID = null;

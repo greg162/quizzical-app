@@ -259,10 +259,13 @@ db.once('open', function() {
     });
 
 
-    socket.on('mark-answer', (markedAnswer) => {
+    socket.on('mark-answer', async (markedAnswer) => {
       console.log('Admin has marked answer... passing back to user.');
       //Carry out basic validation
       var errors = "";
+      socket.game =  await Game.findOne({game_id: socket.game.game_id}).exec().catch((err) => {
+        console.log(err)
+      });
 
       if(typeof markedAnswer.questionId == 'undefined')             { errors += "No question ID was sent.\n"; }
       else if(!socket.game.questionExists(markedAnswer.questionId)) { errors += "Could not find that question.\n"; }

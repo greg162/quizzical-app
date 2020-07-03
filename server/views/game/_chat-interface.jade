@@ -1,9 +1,9 @@
 p Logged in players
 ul(v-for="subPlayer in players",class="player-list")
   li
-    img(v-bind:src="loadIcon(subPlayer.avatar)",class="player-list-avatar")
-    {{ subPlayer.name }} 
-    span(v-if="subPlayer.isAdmin",class="badge badge-primary")  👔
+    img(v-bind:src="loadIcon(subPlayer.avatar)",v-bind:class="{pulse: subPlayer.scoreUpdated}",class="player-list-avatar")
+    {{ subPlayer.name }}
+    span(v-if="subPlayer.isAdmin",class="badge badge-primary") 👔
     span(v-else,class="badge badge-primary") {{ subPlayer.score }}
 
 div(class="chat-container")
