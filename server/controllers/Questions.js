@@ -1,8 +1,8 @@
 var _ = require('lodash');
 
 class QuestionController {
-  constructor(questions, currentQuestionKey) {
-    this.currentQuestion = currentQuestionKey;
+  constructor(questions, nextQuestionKey) {
+    this.nextQuestion    = nextQuestionKey;
     this.questions       = [];
     this.questionIds     = [];
     questions.forEach(question => {
@@ -10,8 +10,8 @@ class QuestionController {
       this.questionIds.push(question.id);
     });
 
-    if(typeof this.currentQuestion == 'undefined') {
-      this.currentQuestion = 0;
+    if(typeof this.nextQuestion == 'undefined') {
+      this.nextQuestion = 0;
     }
 
     this.totalQuestions    = questions.length
@@ -19,10 +19,11 @@ class QuestionController {
   }
 
   loadNextQuestion() {
+    console.log('question num:'+this.nextQuestion);
     //Get the next question to load
     var currentQuestionObject = {};
     if(!this.noMoreQuestions) {
-      var questionId            = this.questionIds[this.currentQuestion];
+      var questionId            = this.questionIds[this.nextQuestion];
       var question              = _.cloneDeep(this.questions[questionId]);
       if(question) {
         var currentQuestionObject = {
@@ -44,13 +45,17 @@ class QuestionController {
         };
       }
 
-      if(this.totalQuestions - 1 <= this.currentQuestion ) {
-        this.noMoreQuestions = true;
-      }
-      this.currentQuestion++;
+      this.checkIfQuestions();
+      this.nextQuestion++;
     }
     return currentQuestionObject;
 
+  }
+
+  checkIfQuestions() {
+    if(this.totalQuestions - 1 <= this.nextQuestion ) {
+      this.noMoreQuestions = true;
+    }
   }
 
   addQuestions(questions) {

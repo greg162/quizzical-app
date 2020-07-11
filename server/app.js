@@ -1,17 +1,28 @@
-var createError = require('http-errors');
-var express = require('express');
-var path = require('path');
+var createError  = require('http-errors');
+var express      = require('express');
+var path         = require('path');
 var cookieParser = require('cookie-parser');
-var logger = require('morgan');
+var logger       = require('morgan');
+var mongoose     = require('mongoose');
 
-var indexRouter = require('./routes/index');
-var usersRouter = require('./routes/users');
-var _ = require('lodash');
-var config = require('./_config');
+
+var indexRouter  = require('./routes/index');
+var usersRouter  = require('./routes/users');
+const GameRouter = require('./routes/game');
+var _            = require('lodash');
+var config       = require('./_config');
 
 
 
 var app = express();
+
+mongoose.connect(config.mongoDatabaseString, {useNewUrlParser: true, useUnifiedTopology: true});
+var db = mongoose.connection;
+db.on('error', console.error.bind(console, 'connection error:'));
+db.once('open', function() {
+  console.log('Connected to the database')
+});
+db.on('error', console.error.bind(console, 'connection error:'));
 
 
 var customPort = 80;
@@ -31,6 +42,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
+app.use('/q', GameRouter(mongoose));
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
@@ -54,7 +66,6 @@ module.exports = app;
 //Load modules for the websocket system and DB
 const server = require('http').Server(app);
 const io     = require('socket.io')(server);
-var mongoose = require('mongoose');
 
 
 //Load the controllers
@@ -73,10 +84,7 @@ GameSchema.loadClass(GameController);
 server.listen(1337);
 
 
-mongoose.connect(config.mongoDatabaseString, {useNewUrlParser: true, useUnifiedTopology: true});
-var db = mongoose.connection;
-db.on('error', console.error.bind(console, 'connection error:'));
-db.once('open', function() {
+
 
 
   let Game            = mongoose.model('Game', GameSchema);
@@ -116,7 +124,8 @@ db.once('open', function() {
                   socket.emit('load-question', socket.game.current_question);
                   if(socket.player.isAdmin) {
                     socket.questions = new QuestionsController(socket.game.questions, socket.game.current_question_key);
-
+                    socket.questions.nextQuestion++;
+                    socket.questions.checkIfQuestions();
                   }
                 }
               }
@@ -185,7 +194,9 @@ db.once('open', function() {
         if(socket.game.questions) {
           socket.questions = new QuestionsController(socket.game.questions, socket.game.current_question_key);
 
-          socket.game.current_question = socket.questions.loadNextQuestion();
+          socket.game.current_question     = socket.questions.loadNextQuestion();
+          socket.game.current_question_key = socket.questions.nextQuestion - 1;
+
           socket.to(socket.game.getGameId()).emit('load-question', socket.game.current_question);
           socket.emit('load-question', socket.game.current_question);
 
@@ -283,8 +294,8 @@ db.once('open', function() {
         console.log(question);
         console.log(updatedPlayer.socket_id);
         if(typeof updatedPlayer.score !== 'undefined') {
-          socket.emit('updated-player-score', updatedPlayer.score, updatedPlayer.uuid);
-          socket.to(socket.game.getGameId()).emit('updated-player-score', updatedPlayer.score, updatedPlayer.uuid);
+          socket.emit('updated-player-score', updatedPlayer.score, markedAnswer.answerCorrect, updatedPlayer.uuid);
+          socket.to(socket.game.getGameId()).emit('updated-player-score', updatedPlayer.score, markedAnswer.answerCorrect, updatedPlayer.uuid);
           if( typeof updatedPlayer.socket_id !== 'undefined') {
             if(markedAnswer.answerCorrect) {
               io.to(updatedPlayer.socket_id).emit('success', `You got '${question.question}' correct.\n`);
@@ -311,7 +322,7 @@ db.once('open', function() {
           socket.emit('game-complete', true);
         } else {
           socket.game.current_question     = socket.questions.loadNextQuestion();
-          socket.game.current_question_key = socket.questions.currentQuestion;
+          socket.game.current_question_key = socket.questions.nextQuestion - 1;
           socket.to(socket.game.getGameId()).emit('load-question', socket.game.current_question);
           socket.emit('load-question', socket.game.current_question);
         }
@@ -321,6 +332,3 @@ db.once('open', function() {
 
 
   });
-
-
-});

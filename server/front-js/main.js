@@ -3,10 +3,28 @@ import Vue from 'vue/dist/vue.js';
 
 import io from 'socket.io-client';
 
+
 const socket = io();
 
 const DEBUG = true;
 var _ = require('lodash');
+
+const confetti = require('canvas-confetti');
+
+
+var myCanvas = document.getElementById('confetti-cannon');
+var victoryConfetti = confetti.create(myCanvas, {
+  resize: true,
+  useWorker: true
+});
+
+let answerCorrectNoise   = new Audio('/audio/answer-correct.mp3');
+let answerReceivedNoise  = new Audio('/audio/answer-received.mp3');
+let answerSubmittedNoise = new Audio('/audio/answer-submitted.mp3');
+let answerWrongNoise     = new Audio('/audio/answer-wrong.mp3');
+let newMessageNoise      = new Audio('/audio/new-message.mp3');
+let playerPointNoise     = new Audio('/audio/player-point.mp3');
+let buttonClickNoise     = new Audio('/audio/button-click.mp3');
 
 var app = new Vue({
   el: '#app',
@@ -93,6 +111,7 @@ var app = new Vue({
       this.adminPassword = "";
     },
     sendMessage: function () {
+      buttonClickNoise.play();
       console.log('Sending message...');
       socket.emit('chat-message', this.message);
       var message  = _.cloneDeep(this.player);
@@ -106,6 +125,7 @@ var app = new Vue({
       return '/img/avatars/avatar_'+stringNum+'.svg'
     },
     joinGame(tableSent) {
+      buttonClickNoise.play();
       this.errors = "";
       if(!this.player.name)   { this.displayError("You must enter your name.\n"); }
       if(!this.player.avatar) { this.displayError("You must select an Avatar.\n"); }
@@ -131,6 +151,7 @@ var app = new Vue({
       socket.disconnect();
     },
     startGame() {
+      buttonClickNoise.play();
       this.errors = "";
       if(!this.player.isAdmin) { this.displayError("You must be an admin player to start a game"); }
       if(!this.player.uuid)    { this.displayError("It appears you have not joined a game yet."); }
@@ -149,17 +170,19 @@ var app = new Vue({
       setTimeout(() => this.success = "", 1000);
     },
     submitAnswer(answerText) {
+      buttonClickNoise.play();
       if(!answerText) { this.displayError("You must select/enter an answer!\n"); }
       else {
         var answerId = this.currentQuestion.id;
         this.usersQuestionAnswer = answerText;
-        socket.emit('submit-answer', { answerId: answerId, answerText: answerText, playerUUID: this.player.uuid }, function() {
-          this.success = "Answer has been submitted! Waiting to see if it's correct...\n";
-        }.bind(this));
+        socket.emit('submit-answer', { answerId: answerId, answerText: answerText, playerUUID: this.player.uuid });
+        this.success = "Answer has been submitted! Waiting to see if it's correct...\n";
+        answerSubmittedNoise.play();
       }
     },
     markAnswer(answerCorrect, playerUUID, questionId) {
       var errors = "";
+      buttonClickNoise.play();
       //Carry out basic validation
       if(typeof isCorrect === 'null')  { errors = "You must select if the answer is correct or not!"; }
       if(!playerUUID)                  { errors = "Player ID not found!"; }
@@ -173,6 +196,7 @@ var app = new Vue({
       }
     },
     loadNextQuestion() {
+      buttonClickNoise.play();
       socket.emit('load-next-question', true)
     },
     debug(debugMessage) {
@@ -247,6 +271,7 @@ var app = new Vue({
     socket.on('chat-message', (message) => {
       this.debug('chat-message');
       this.messages.unshift(message);
+      newMessageNoise.play();
     });
 
     //Functions related to the player.
@@ -290,6 +315,11 @@ var app = new Vue({
     socket.on('game-complete', (gameFinished) => {
       this.debug('game-complete');
       this.gameFinished = gameFinished;
+      victoryConfetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 }
+      });
     });
 
     
@@ -299,7 +329,7 @@ var app = new Vue({
       this.currentQuestion        = _.cloneDeep(question);
       this.players.forEach(function(player, index) { 
         this.players[index].scoreUpdated = false;
-        this.players[index].answerAdded = true;
+        this.players[index].answerAdded = false;
       }.bind(this));
     });
 
@@ -320,20 +350,35 @@ var app = new Vue({
           this.players[index].currentAnswerText = answerForMarking.answerText;
           this.players[index].currentQuestionID = answerForMarking.answerId;
           this.players[index].answerAdded = true;
+          answerReceivedNoise.play();
         }
       }.bind(this));
     });
 
-    socket.on('updated-player-score', (playerScore,playerUUID) => {
+    socket.on('updated-player-score', (playerScore, gotPoint, playerUUID) => {
       this.debug('updated-player-score');
-      this.players.forEach(function(player, index) { 
+      console.log(playerScore);
+      console.log(gotPoint);
+      console.log(playerUUID)
+      this.players.forEach(function(player, index) {
+
         if(player.uuid == playerUUID) {
-          console.log(playerScore);
+          
           this.players[index].score        = parseInt(playerScore);
           this.players[index].scoreUpdated = true;
           if(this.player.isAdmin) {
             this.players[index].currentAnswerText = "";
             this.players[index].currentQuestionID = null;
+          }
+
+          if(playerUUID == this.player.uuid) {
+            if(gotPoint === true) {
+              answerCorrectNoise.play();
+            } else {
+              answerWrongNoise.play();
+            }
+          } else {
+            playerPointNoise.play();
           }
         }
       }.bind(this));

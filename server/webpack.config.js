@@ -5,7 +5,7 @@ const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 
 module.exports = {
   watch: true,
-  entry: ['./front.js', './styles/main.scss'],
+  entry: ['./front-js/main.js', './styles/main.scss'],
   output: {
     filename: 'main.js',
     path: path.resolve(__dirname, 'public'),
