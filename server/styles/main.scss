@@ -11,7 +11,7 @@ $font-brand: 'Titillium Web', sans-serif;
 @import "custom";
 @import "~bootstrap/scss/bootstrap";
 
-$pulse-colors: ("green": $green, "purple": $purple);
+$pulse-colors: ("green": $green, "purple": $purple, "yellow": $yellow);
 
 .game-title-container {
   background-color: $purple;

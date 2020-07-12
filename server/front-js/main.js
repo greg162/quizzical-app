@@ -4,15 +4,11 @@ import Vue from 'vue/dist/vue.js';
 import io from 'socket.io-client';
 
 
-const socket = io();
-
-const DEBUG = true;
-var _ = require('lodash');
-
-const confetti = require('canvas-confetti');
-
-
-var myCanvas = document.getElementById('confetti-cannon');
+const socket        = io();
+const DEBUG         = true;
+var _               = require('lodash');
+const confetti      = require('canvas-confetti');
+var myCanvas        = document.getElementById('confetti-cannon');
 var victoryConfetti = confetti.create(myCanvas, {
   resize: true,
   useWorker: true
@@ -97,15 +93,15 @@ var app = new Vue({
         isAdmin: false,
         avatar: false,
       };
-      this.currentQuestion = {marked: false};
+      this.currentQuestion     = {marked: false};
       this.usersQuestionAnswer = "";
-      this.joinedGame   = false;
-      this.gameStarted  = false;
-      this.gameFinished = false;
-      this.players = [];
+      this.joinedGame          = false;
+      this.gameStarted         = false;
+      this.gameFinished        = false;
+      this.players             = [];
       //Get the game ID from the URL if it was passed.
-      if(window.location.hash) {
-        this.gameId = window.location.hash.substring(1);
+      if(initGameId) {
+        this.gameId = initGameId;
       }
   
       this.adminPassword = "";
@@ -177,6 +173,8 @@ var app = new Vue({
         this.usersQuestionAnswer = answerText;
         socket.emit('submit-answer', { answerId: answerId, answerText: answerText, playerUUID: this.player.uuid });
         this.success = "Answer has been submitted! Waiting to see if it's correct...\n";
+        this.currentQuestion.answerSubmitted = true;
+        setTimeout(() => this.currentQuestion.answerSubmitted = false, 500); //Remove the class after the animation has finished
         answerSubmittedNoise.play();
       }
     },
@@ -222,7 +220,6 @@ var app = new Vue({
 
     socket.on('connect', () => {
       this.success = "You have successfully connected to the server!";
-      //setTimeout(() => this.success = "", 2000);
       var currentGame = localStorage.getItem('currentGame');
       if(currentGame) {
         currentGame = JSON.parse(currentGame);
@@ -336,8 +333,6 @@ var app = new Vue({
     //Functions related to the game
     socket.on('question-marked', (questionId) => {
       this.debug('question-marked');
-      this.debug(questionId);
-      this.debug(this.currentQuestion.id)
       if(questionId == this.currentQuestion.id) {
         this.currentQuestion.marked = 1;
       }
@@ -357,9 +352,6 @@ var app = new Vue({
 
     socket.on('updated-player-score', (playerScore, gotPoint, playerUUID) => {
       this.debug('updated-player-score');
-      console.log(playerScore);
-      console.log(gotPoint);
-      console.log(playerUUID)
       this.players.forEach(function(player, index) {
 
         if(player.uuid == playerUUID) {

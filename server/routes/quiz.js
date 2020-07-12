@@ -1,6 +1,7 @@
 var express      = require('express');
 var router       = express.Router();
-const GameSchema = require('./../schema/Game.js');
+const GameSchema = require('../schema/Game.js');
+var config       = require('../_config');
 
 
 module.exports = function(mongoose) {
@@ -17,11 +18,15 @@ module.exports = function(mongoose) {
       let Game = mongoose.model('Game', GameSchema);
       Game.findOne({ game_id: cleanGameId } ,function (err, game) {
         if (err) return console.log(err);
-        console.log(game);
+        console.log('Game found');
+        if(game) {
+          res.render('index', { name: 'Quizzical - '+game.name, description: game.description, siteUrl: config.siteUrl, gameId: game.game_id, appUrl: config.appUrl });
+        } else {
+          res.render('index', { name: 'Quizzical', description: 'Build and play quizzes with your friends', siteUrl: config.siteUrl, gameId: '', appUrl: config.appUrl });
+        }
+
       });
     }
-    res.render('index', { title: 'Test Application' });
-
   });
 
   return router;

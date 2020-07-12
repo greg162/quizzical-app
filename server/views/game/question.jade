@@ -4,7 +4,7 @@ div(class="current-question",v-if="currentQuestion")
     p {{ usersQuestionAnswer }}
   div(v-else)
     div(v-if="currentQuestion.type == 'multiple-choice' ")
-      div(class="btn-group",role="group",aria-label="Your Answer")
+      div(class="btn-group",role="group",aria-label="Your Answer",v-bind:class="{'yellow-glow': currentQuestion.answerSubmitted}")
         button(v-if="currentQuestion.answer_1" type="button" v-on:click="submitAnswer(currentQuestion.answer_1)" class="btn btn-secondary") {{ currentQuestion.answer_1 }}
         button(v-if="currentQuestion.answer_2" type="button" v-on:click="submitAnswer(currentQuestion.answer_2)" class="btn btn-secondary") {{ currentQuestion.answer_2 }}
         button(v-if="currentQuestion.answer_3" type="button" v-on:click="submitAnswer(currentQuestion.answer_3)" class="btn btn-secondary") {{ currentQuestion.answer_3 }}
@@ -15,14 +15,14 @@ div(class="current-question",v-if="currentQuestion")
 
     div(v-else-if="currentQuestion.type == 'embed' ")
       div(class="embed-responsive embed-responsive-16by9",v-html="currentQuestion.answer_2")
-      div(class="input-group mb-3")
+      div(class="input-group mb-3",v-bind:class="{'yellow-glow': currentQuestion.answerSubmitted}")
         input(type="text",v-model="usersQuestionAnswer",class="form-control")
         div(class="input-group-append")
           button(type="button",v-on:click="submitAnswer(usersQuestionAnswer)",class="btn btn-secondary") Answer!
 
 
     div(v-else-if="currentQuestion.type == 'text' ")
-      div(class="input-group mb-3")
+      div(class="input-group mb-3",v-bind:class="{'yellow-glow': currentQuestion.answerSubmitted}")
         input(type="text",v-model="usersQuestionAnswer",class="form-control")
         div(class="input-group-append")
           button(type="button",v-on:click="submitAnswer(usersQuestionAnswer)",class="btn btn-secondary") Answer!

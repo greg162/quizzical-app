@@ -8,7 +8,7 @@ var mongoose     = require('mongoose');
 
 var indexRouter  = require('./routes/index');
 var usersRouter  = require('./routes/users');
-const GameRouter = require('./routes/game');
+const GameRouter = require('./routes/quiz');
 var _            = require('lodash');
 var config       = require('./_config');
 
@@ -66,7 +66,6 @@ module.exports = app;
 //Load modules for the websocket system and DB
 const server = require('http').Server(app);
 const io     = require('socket.io')(server);
-
 
 //Load the controllers
 const QuestionsController = require('./controllers/Questions.js');
