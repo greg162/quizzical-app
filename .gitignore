@@ -1,3 +1,7 @@
 server/node_modules/*
 server/_config.js
 server/package-lock.json
+public/main.js
+public/main.css
+public/main.css.map
+public/main.js.map
