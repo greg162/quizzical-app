@@ -106,14 +106,14 @@ var app = new Vue({
   
       this.adminPassword = "";
     },
-    sendMessage: function () {
+    sendMessage() {
       buttonClickNoise.play();
       console.log('Sending message...');
       socket.emit('chat-message', this.message);
       var message  = _.cloneDeep(this.player);
       message.text = this.message;
       this.messages.unshift(message);
-
+      this.message = "";
     },
     loadIcon(num) {
       var stringNum = num+"";
@@ -176,6 +176,7 @@ var app = new Vue({
         this.currentQuestion.answerSubmitted = true;
         setTimeout(() => this.currentQuestion.answerSubmitted = false, 500); //Remove the class after the animation has finished
         answerSubmittedNoise.play();
+        this.usersQuestionAnswer = "";
       }
     },
     markAnswer(answerCorrect, playerUUID, questionId) {
@@ -324,6 +325,7 @@ var app = new Vue({
     socket.on('load-question', (question) => {
       this.debug('load-question');
       this.currentQuestion        = _.cloneDeep(question);
+      this.currentQuestion.answer_text = this.currentQuestion['answer_'+this.currentQuestion.correct_answer];
       this.players.forEach(function(player, index) { 
         this.players[index].scoreUpdated = false;
         this.players[index].answerAdded = false;

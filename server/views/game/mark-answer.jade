@@ -1,6 +1,6 @@
 div(class="current-question-admin",v-if="currentQuestion")
   h3 {{ currentQuestion.question }}
-  h4 Answer: {{ currentQuestion.correct_answer }}
+  h4 Answer: {{ currentQuestion.answer_text }}
   div(class="question-correct-container",v-for="subPlayer in players" v-if="!subPlayer.isAdmin")
       div(class="form-group")
         label(v-bind:for="'player-'+player.uuid") {{ subPlayer.name }}
