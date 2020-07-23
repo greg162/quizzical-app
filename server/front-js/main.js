@@ -142,9 +142,9 @@ var app = new Vue({
     },
     exitGame() {
       this.resetGameData();
-      this.gameId = "";
+      //this.gameId = "";
       localStorage.removeItem('currentGame');
-      socket.disconnect();
+      //socket.disconnect();
     },
     startGame() {
       buttonClickNoise.play();
@@ -153,7 +153,7 @@ var app = new Vue({
       if(!this.player.uuid)    { this.displayError("It appears you have not joined a game yet."); }
       if(!this.errors) {
         socket.emit('start-game', true, function() {
-          this.success = "Attempting to start game....";
+          this.displaySuccess("Attempting to start game....");
         });
       }
     },
@@ -172,7 +172,7 @@ var app = new Vue({
         var answerId = this.currentQuestion.id;
         this.usersQuestionAnswer = answerText;
         socket.emit('submit-answer', { answerId: answerId, answerText: answerText, playerUUID: this.player.uuid });
-        this.success = "Answer has been submitted! Waiting to see if it's correct...\n";
+        this.displaySuccess("Answer has been submitted! Waiting to see if it's correct...\n");
         this.currentQuestion.answerSubmitted = true;
         setTimeout(() => this.currentQuestion.answerSubmitted = false, 500); //Remove the class after the animation has finished
         answerSubmittedNoise.play();
@@ -220,7 +220,7 @@ var app = new Vue({
     this.resetGameData();
 
     socket.on('connect', () => {
-      this.success = "You have successfully connected to the server!";
+      this.displaySuccess("You have successfully connected to the server!");
       var currentGame = localStorage.getItem('currentGame');
       if(currentGame) {
         currentGame = JSON.parse(currentGame);

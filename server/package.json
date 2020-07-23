@@ -5,7 +5,8 @@
   "scripts": {
     "build": "webpack --config webpack.prod.js",
     "start": "concurrently \"nodemon ./app.js localhost 80\" \"webpack --progress --colours --config webpack.dev.js\"",
-    "server-only": "nodemon ./app.js localhost 80"
+    "server-only": "nodemon ./app.js localhost 80",
+    "test-server": "concurrently \"nodemon ./app.js localhost 80\" \"jest --runInBand --noStackTrace --silent\""
   },
   "dependencies": {
     "bootstrap": "^4.4.1",
@@ -29,6 +30,7 @@
   "devDependencies": {
     "copy-webpack-plugin": "^5.1.1",
     "css-loader": "^3.5.3",
+    "jest": "^26.1.0",
     "mini-css-extract-plugin": "^0.9.0",
     "nodemon": "^2.0.3",
     "sass": "^1.26.5",

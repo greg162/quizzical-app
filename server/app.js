@@ -179,8 +179,8 @@ server.listen(1337);
     socket.on('start-game', async function(startGame) {
       var errors = "";
       if(!startGame)             { errors += "Start socket.game variable not detected!"; }
-      if(!socket.game.game_id)   { errors += "We could not find the game that should be starting"; }
-      if(!socket.player.isAdmin) { errors += "You are not an admin player.\h"; }
+      if(typeof socket.game == 'undefined' || socket.game.game_id == 'undefined' || !socket.game.game_id)   { errors += "We could not find the game that should be starting"; }
+      else if( typeof socket.player == 'undefined' || typeof socket.player.isAdmin == 'undefined' || !socket.player.isAdmin) { errors += "You are not an admin player.\h"; }
       if(errors) { socket.emit('general-errors', errors); }
       else {
         //Refresh the game to ensure that we have all the players
@@ -236,14 +236,13 @@ server.listen(1337);
 
     socket.on('chat-message', (msg) => {
       console.log("Chat message submitted... passing back!");
-      console.log(socket.game.game_id);
       if(typeof socket.game != 'undefined' && socket.game.game_id != 'undefined' && socket.game.game_id) {
         console.log('Game found... emitting message');
         var message  = _.clone(socket.player);
         message.text = msg;
         socket.to(socket.game.getGameId()).emit('chat-message', message);
       } else {
-        console.log('Game not found! Skipping message')
+        socket.emit('general-errors', 'Game not found!');
       }
     });
 
@@ -253,18 +252,21 @@ server.listen(1337);
       console.log('Answer received for marking... passing to the admin.');
       var errors = "";
       //Update the game to ensure we have the correct admin socket
-      console.log("game ID"+socket.game.game_id)
-      socket.game =  await Game.findOne({game_id: socket.game.game_id}).exec().catch((err) => {
-        console.log(err)
-      });
-      if(!socket.game)                                                  { socket.disconnect(); } //If we've lost the game, just disconnect the user.
-      if(answerForMarking.answerId !== socket.game.current_question.id) { errors += "We're not marking that question anymore. :-(\n"; }
-      if(!answerForMarking.answerText)                                  { errors += "You must enter an answer for marking!\n"; }
-      if(socket.game.userAnsweredQuestion(socket.player.uuid))          { errors += "You've already answered that question!\n"; }
-      if(errors) { socket.emit('general-errors', errors); }
-      else {
-        console.log("Passing answer to admin for marking:"+socket.game.admin_socket_id)
-        io.to(socket.game.admin_socket_id).emit('answer-for-marking', answerForMarking);
+        if(typeof socket.game != 'undefined' && socket.game.game_id != 'undefined' && socket.game.game_id) {
+        socket.game =  await Game.findOne({game_id: socket.game.game_id}).exec().catch((err) => {
+          console.log(err)
+        });
+        if(!socket.game)                                                  { errors += "Game not found!"; } //If we've lost the game, just disconnect the user.
+        if(answerForMarking.answerId !== socket.game.current_question.id) { errors += "We're not marking that question anymore. :-(\n"; }
+        if(!answerForMarking.answerText)                                  { errors += "You must enter an answer for marking!\n"; }
+        if(socket.game.userAnsweredQuestion(socket.player.uuid))          { errors += "You've already answered that question!\n"; }
+        if(errors) { socket.emit('general-errors', errors); }
+        else {
+          console.log("Passing answer to admin for marking:"+socket.game.admin_socket_id)
+          io.to(socket.game.admin_socket_id).emit('answer-for-marking', answerForMarking);
+        }
+      }else {
+        socket.emit('general-errors', 'Game not found!');
       }
     });
 
@@ -273,16 +275,20 @@ server.listen(1337);
       console.log('Admin has marked answer... passing back to user.');
       //Carry out basic validation
       var errors = "";
-      socket.game =  await Game.findOne({game_id: socket.game.game_id}).exec().catch((err) => {
-        console.log(err)
-      });
+        if(typeof socket.game != 'undefined' && socket.game.game_id != 'undefined' && socket.game.game_id) {
+        socket.game =  await Game.findOne({game_id: socket.game.game_id}).exec().catch((err) => {
+          console.log(err)
+        });
 
-      if(typeof markedAnswer.questionId == 'undefined')             { errors += "No question ID was sent.\n"; }
-      else if(!socket.game.questionExists(markedAnswer.questionId)) { errors += "Could not find that question.\n"; }
-      if(typeof markedAnswer.playerUUID == 'undefined')             { errors += "No player ID was sent.\n"; }
-      else if(!socket.game.playerExists(markedAnswer.playerUUID))   { errors += "Could not find that player.\n"; }
-      if(typeof markedAnswer.answerCorrect == 'undefined')          { errors += "Answer correct value not sent.\n"; }
-      if(!socket.player.isAdmin)                                    { errors += "You are not an admin player.\h"; }
+        if(typeof markedAnswer.questionId == 'undefined')             { errors += "No question ID was sent.\n"; }
+        else if(!socket.game.questionExists(markedAnswer.questionId)) { errors += "Could not find that question.\n"; }
+        if(typeof markedAnswer.playerUUID == 'undefined')             { errors += "No player ID was sent.\n"; }
+        else if(!socket.game.playerExists(markedAnswer.playerUUID))   { errors += "Could not find that player.\n"; }
+        if(typeof markedAnswer.answerCorrect == 'undefined')          { errors += "Answer correct value not sent.\n"; }
+        if(!socket.player.isAdmin)                                    { errors += "You are not an admin player.\h"; }
+      } else {
+        socket.emit('general-errors', 'Cannot submit answer for marking! Game not found!');
+      }
 
       //If the validation passes, update the players score and sent them a confirmation message.
       if(errors) { socket.emit('general-errors', errors); }
@@ -311,21 +317,25 @@ server.listen(1337);
 
     socket.on('load-next-question', (nextQuestion) => {
       var errors = "";
-      if(!nextQuestion)          { errors += "You don't want to load the next question.\n"; }
-      if(!socket.player.isAdmin) { errors += "You are not an admin player.\h"; }
-      if(errors)                 { socket.emit('general-errors', errors); }
-      else {
-        if(socket.questions.noMoreQuestions) {
-          socket.game.game_completed = 1;
-          socket.to(socket.game.getGameId()).emit('game-complete', true);
-          socket.emit('game-complete', true);
-        } else {
-          socket.game.current_question     = socket.questions.loadNextQuestion();
-          socket.game.current_question_key = socket.questions.nextQuestion - 1;
-          socket.to(socket.game.getGameId()).emit('load-question', socket.game.current_question);
-          socket.emit('load-question', socket.game.current_question);
+      if(typeof socket.game != 'undefined' && socket.game.game_id != 'undefined' && socket.game.game_id) {
+        if(!nextQuestion)          { errors += "You don't want to load the next question.\n"; }
+        if(!socket.player.isAdmin) { errors += "You are not an admin player.\h"; }
+        if(errors)                 { socket.emit('general-errors', errors); }
+        else {
+          if(socket.questions.noMoreQuestions) {
+            socket.game.game_completed = 1;
+            socket.to(socket.game.getGameId()).emit('game-complete', true);
+            socket.emit('game-complete', true);
+          } else {
+            socket.game.current_question     = socket.questions.loadNextQuestion();
+            socket.game.current_question_key = socket.questions.nextQuestion - 1;
+            socket.to(socket.game.getGameId()).emit('load-question', socket.game.current_question);
+            socket.emit('load-question', socket.game.current_question);
+          }
+          socket.game.save();
         }
-        socket.game.save();
+      }else {
+        socket.emit('general-errors', 'Cannot load next question! Game not found!');
       }
     });
 
