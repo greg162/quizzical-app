@@ -156,8 +156,16 @@ class GameController {
   validateNewPlayer(gameJoinData) {
     var errors = "";
     if(!gameJoinData.playerName)                         { errors += "You must enter a name!\n"; }
-    if(!gameJoinData.playerAvatar)                       { errors += "You must enter a name!\n"; }
-    else if(gameJoinData.playerName.length > 100)        { errors += "Your name cannot be longer than 100 characters!\n"; }
+    else if(gameJoinData.playerName.length > 30)        { errors += "Your name cannot be longer than 30 characters!\n"; }
+
+    if(!gameJoinData.playerAvatar)                       { errors += "You must select an avatar!\n"; }
+    else if(
+      isNaN(gameJoinData.playerAvatar) ||
+      parseInt(gameJoinData.playerAvatar) < 1 ||
+      parseInt(gameJoinData.playerAvatar) > 120
+    ) { errors += "Avatar not found!\n"; }
+      console.log(parseInt(gameJoinData.playerAvatar));
+
     if(this.have_admin_player && gameJoinData.password ) { errors += "There is already an admin player running this game!\n"; }
     if(this.game_started )                               { errors += "This game has already started!\n"; }
     if(this.game_completed )                             { errors += "This game has finished!\n"; }
