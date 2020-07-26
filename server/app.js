@@ -83,9 +83,6 @@ GameSchema.loadClass(GameController);
 server.listen(1337);
 
 
-
-
-
   let Game            = mongoose.model('Game', GameSchema);
   let tables          = new TableController;
 
@@ -99,77 +96,76 @@ server.listen(1337);
       console.log("Starting game joining process...");
 
       /* --- START AND LEAVE GAME SOCKETS --- */
-      if(typeof gameJoinData.gameId == 'undefined') { errors += "Cannot join game! No Game ID found!\n"; }
-      if(typeof gameJoinData.tableId == 'undefined') { errors += "Cannot join game! No table found!\n"; }
+      if(typeof socket.game != 'undefined')                { errors += "You are already in a game. Quit first before joining another.\n";}
+      if(typeof gameJoinData.gameId == 'undefined')        { errors += "Cannot join game! No Game ID found!\n"; }
+      if(typeof gameJoinData.tableId == 'undefined')       { errors += "Cannot join game! No table found!\n"; }
+      else if(!tables.tableIdExists(gameJoinData.tableId)) { errors += 'We could not find that table'; }
+
       if(errors) {
         socket.emit('general-errors', errors);
       }else {
         Game.findOne({ game_id: gameJoinData.gameId } ,function (err, game) {
           if (err) return console.error(err);
           if(game !== null) {
-            socket.game = game;
-            if(tables.tableIdExists(gameJoinData.tableId)) {
 
-              //Player is attempting to rejoin
-              if(gameJoinData.playerUuid) {
-                console.log(socket.id);
-                var player = game.findExistingPlayer(gameJoinData.playerUuid, socket.id);
-                if(player) {
-                  socket.player = player;
-                  socket.game.save();
-                  
-                  //If the game has started reload the current question and stuff
-                  if(socket.game.game_completed ) {
-                    socket.emit('game-complete', true);
-                  } else if(socket.game.game_started) {
-                    socket.emit('game-started', true);
-                    socket.emit('load-question', socket.game.current_question);
-                    if(socket.player.isAdmin) {
-                      socket.questions = new QuestionsController(socket.game.questions, socket.game.current_question_key);
-                      socket.questions.nextQuestion++;
-                      socket.questions.checkIfQuestions();
-                    }
-                  }
-                }
-              
-              //If we're dealing with a new player
-              } else {
-                var errors = socket.game.validateNewPlayer(gameJoinData, socket.game);
-                if(errors) {
-                  socket.emit('login-errors', errors);
-                } else {
-
-                  socket.player = socket.game.createNewPlayer(gameJoinData, socket.id, socket.game);
-                  if(socket.player.isAdmin) {
-                    socket.game.have_admin_player = 1,
-                    socket.game.admin_socket_id   = socket.id;
-                  }
-                  socket.game.players.push(socket.player);
-                  socket.game.save();
-                }
-              }
-              if(socket.player) {
-                //Link the user to the appropriate game
-                console.log('User is joining Game ID '+socket.game.getGameId());
-                socket.join(socket.game.getGameId());
-                tableIndex = tables.data.findIndex(x => x.id === gameJoinData.tableId);
-                tables.data[tableIndex].players.push(socket.player.uuid);
-                socket.emit('success', 'You haver successfully joined the \''+socket.game.name+'\' game!');
-                socket.emit('joined-game', socket.player);
-                socket.to(socket.game.getGameId()).emit('chat-notifications', socket.player.name+" has joined the chat.");
+            //Player is attempting to rejoin
+            if(gameJoinData.playerUuid) {
+              console.log(socket.id);
+              var player = game.findExistingPlayer(gameJoinData.playerUuid, socket.id);
+              if(player) {
+                socket.game   = game;
+                socket.player = player;
+                socket.game.save();
                 
-                //Send the new player to players who have already joined.
-                socket.to(socket.game.getGameId()).emit('add-player', socket.player);
-
-                //send the current players to the existing user
-                _.map(socket.game.players, function(player, key) {
-                  if(player.socket_id != socket.id && player.connected) {
-                    socket.emit('add-player', player);
+                //If the game has started reload the current question and stuff
+                if(socket.game.game_completed ) {
+                  socket.emit('game-complete', true);
+                } else if(socket.game.game_started) {
+                  socket.emit('game-started', true);
+                  socket.emit('load-question', socket.game.current_question);
+                  if(socket.player.isAdmin) {
+                    socket.questions = new QuestionsController(socket.game.questions, socket.game.current_question_key);
+                    socket.questions.nextQuestion++;
+                    socket.questions.checkIfQuestions();
                   }
-                });
+                }
               }
+            
+            //If we're dealing with a new player
             } else {
-              socket.emit('login-errors', 'We could not find that table');
+              var errors = game.validateNewPlayer(gameJoinData);
+              if(errors) {
+                socket.emit('login-errors', errors);
+              } else {
+                socket.game   = game;
+                socket.player = socket.game.createNewPlayer(gameJoinData, socket.id, socket.game);
+                if(socket.player.isAdmin) {
+                  socket.game.have_admin_player = 1,
+                  socket.game.admin_socket_id   = socket.id;
+                }
+                socket.game.players.push(socket.player);
+                socket.game.save();
+              }
+            }
+            if(socket.player) {
+              //Link the user to the appropriate game
+              console.log('User is joining Game ID '+socket.game.getGameId());
+              socket.join(socket.game.getGameId());
+              tableIndex = tables.data.findIndex(x => x.id === gameJoinData.tableId);
+              tables.data[tableIndex].players.push(socket.player.uuid);
+              socket.emit('success', 'You have successfully joined the \''+socket.game.name+'\' game!');
+              socket.emit('joined-game', socket.player);
+              socket.to(socket.game.getGameId()).emit('chat-notifications', socket.player.name+" has joined the chat.");
+              
+              //Send the new player to players who have already joined.
+              socket.to(socket.game.getGameId()).emit('add-player', socket.player);
+
+              //send the current players to the existing user
+              _.map(socket.game.players, function(player, key) {
+                if(player.socket_id != socket.id && player.connected) {
+                  socket.emit('add-player', player);
+                }
+              });
             }
           } else {
             socket.emit('login-errors', 'We could not find that Room, please try again!');
@@ -182,8 +178,9 @@ server.listen(1337);
     socket.on('start-game', async function(startGame) {
       var errors = "";
       if(!startGame)             { errors += "Start socket.game variable not detected!"; }
-      if(typeof socket.game == 'undefined' || socket.game.game_id == 'undefined' || !socket.game.game_id)   { errors += "We could not find the game that should be starting"; }
-      else if( typeof socket.player == 'undefined' || typeof socket.player.isAdmin == 'undefined' || !socket.player.isAdmin) { errors += "You are not an admin player.\h"; }
+      if(typeof socket.game == 'undefined' || socket.game.game_id == 'undefined' || !socket.game.game_id)               { errors += "We could not find the game that should be starting\n"; }
+      else if(socket.game.game_started)                                                                                 { errors += "The game has already started.\n"; }
+      if( typeof socket.player == 'undefined' || typeof socket.player.isAdmin == 'undefined' || !socket.player.isAdmin) { errors += "You are not an admin player.\n"; }
       if(errors) { socket.emit('general-errors', errors); }
       else {
         //Refresh the game to ensure that we have all the players
@@ -222,13 +219,15 @@ server.listen(1337);
 
 
     socket.on('disconnect', async () => {
-      if(socket.player) {
+      if(typeof socket.player != 'undefined') {
         //Refresh the game to ensure that we have all the players
         socket.game =  await Game.findOne({game_id: socket.game.game_id}).exec().catch((err) => {
           console.log(err)
         });
+      }
+      if(typeof socket.game != 'undefined') {
         socket.game.disconnectPlayer(socket.player.uuid);
-        socket.game.save();
+        await socket.game.save();
 
         socket.to(socket.game.getGameId()).emit('chat-notifications', socket.player.name+" has left the chat.");
         socket.to(socket.game.getGameId()).emit('remove-player', socket.player.uuid);
@@ -261,14 +260,20 @@ server.listen(1337);
         });
         if(!socket.game)                                                  { errors += "Game not found!"; } //If we've lost the game, just disconnect the user.
         if(!socket.game.game_started)                                     { errors += "Game has not started yet!.\n"; }
+
         if(
           typeof answerForMarking.answerId != 'undefined' ||
           answerForMarking.answerId !== socket.game.current_question.id
         ) { errors += "We're not marking that question anymore. :-(\n"; }
         if(
           typeof  !answerForMarking.answerText != 'undefined' ||
-          !answerForMarking.answerText) { errors += "You must enter an answer for marking!\n"; }
-        if(socket.game.userAnsweredQuestion(socket.player.uuid))          { errors += "You've already answered that question!\n"; }
+          !answerForMarking.answerText
+        )                                                                 { errors += "You must enter an answer for marking!\n"; }
+
+        //Validate the player.
+        if(typeof socket.player == 'undefined')                           { errors += "Player not found!.\n"; }
+        else if(typeof socket.player.uuid == 'undefined')                 { errors += "Player not found!.\n"; }
+        else if(socket.game.userAnsweredQuestion(socket.player.uuid))     { errors += "You've already answered that question!\n"; }
         if(errors) { socket.emit('general-errors', errors); }
         else {
           console.log("Passing answer to admin for marking:"+socket.game.admin_socket_id)
@@ -295,7 +300,7 @@ server.listen(1337);
         if(typeof markedAnswer.playerUUID == 'undefined')             { errors += "No player ID was sent.\n"; }
         else if(!socket.game.playerExists(markedAnswer.playerUUID))   { errors += "Could not find that player.\n"; }
         if(typeof markedAnswer.answerCorrect == 'undefined')          { errors += "Answer correct value not sent.\n"; }
-        if(!socket.player.isAdmin)                                    { errors += "You are not an admin player.\h";
+        if(!socket.player.isAdmin)                                    { errors += "You are not an admin player.\n";
         }
       
         //If the validation passes, update the players score and sent them a confirmation message.
@@ -329,10 +334,14 @@ server.listen(1337);
     socket.on('load-next-question', (nextQuestion) => {
       var errors = "";
       if(typeof socket.game != 'undefined' && socket.game.game_id != 'undefined' && socket.game.game_id) {
-        if(!socket.game.game_started) { errors += "Game has not started yet!.\n"; }
-        if(!nextQuestion)             { errors += "You don't want to load the next question.\n"; }
-        if(!socket.player.isAdmin)    { errors += "You are not an admin player.\h"; }
-        if(errors)                    { socket.emit('general-errors', errors); }
+        if(!socket.game.game_started)            { errors += "Game has not started yet!.\n"; }
+        if(!nextQuestion)                        { errors += "You don't want to load the next question.\n"; }
+        if(typeof socket.player == 'undefined' ) { errors += "You are not an admin player.\n"; }
+        else if(
+          typeof socket.player.isAdmin == 'undefined' ||
+          !socket.player.isAdmin
+        )                                        { errors += "You are not an admin player.\n"; }
+        if(errors)                               { socket.emit('general-errors', errors); }
         else {
           if(socket.questions.noMoreQuestions) {
             socket.game.game_completed = 1;

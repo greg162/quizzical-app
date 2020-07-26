@@ -6,7 +6,7 @@
     "build": "webpack --config webpack.prod.js",
     "start": "concurrently \"nodemon ./app.js localhost 80\" \"webpack --progress --colours --config webpack.dev.js\"",
     "server-only": "nodemon ./app.js localhost 80",
-    "test-server": "concurrently \"nodemon ./app.js localhost 80\" \"jest --runInBand --noStackTrace\""
+    "test-server": "concurrently \"nodemon ./app.js localhost 80\" \"jest --runInBand --noStackTrace --silent \""
   },
   "dependencies": {
     "bootstrap": "^4.4.1",

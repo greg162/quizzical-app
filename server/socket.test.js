@@ -33,12 +33,23 @@ beforeAll( async (done) => {
 
 
 
-  game =  await Game.findOne({game_started: 0, game_completed: 0}).exec().catch((err) => {
+  game =  await Game.findOne({game_id: 'IzzZhRSjhS'}).exec().catch((err) => {
     console.log(err)
   });
+
   if(typeof game.game_id == 'undefined') {
     throw 'No game to test with found';
   }
+
+  //Reset the game (if required)
+  game.game_started      = 0;
+  game.game_completed    = 0;
+  game.have_admin_player = 0;
+  game.players           = [];
+  game.admin_socket_id   = "";
+  game.current_question  = {};
+  current_question_key   = "";
+  await game.save();
 
   socket.on('general-errors', (errorMessage) => {
     lastErrorMessage = errorMessage;
@@ -62,6 +73,7 @@ afterAll(async (done) => {
     console.log(err)
   });
 
+  //Reset the game after closing
   game.game_started      = 0;
   game.game_completed    = 0;
   game.have_admin_player = 0;
@@ -101,7 +113,7 @@ describe('Test that all of the submit answer functions fail gracefully if not co
     //We've not joined a game, so this should faile
     socket.emit('start-game', true);
     socket.once('general-errors', (errorMessage) => {
-      expect(errorMessage).toBe('We could not find the game that should be starting');
+      expect(errorMessage).toBe("We could not find the game that should be starting\nYou are not an admin player.\n");
       done();
     });
   });
@@ -163,6 +175,7 @@ describe('Test the game joining functions', () => {
       expect(errorMessage).toBe("You must enter a name!\n");
       done();
     });
+
   });
 
   test("Attempt to join a gamer with a player name over 30 characters long", async (done) => {
@@ -191,21 +204,20 @@ describe('Test the game joining functions', () => {
       done();
     });
   });
+
 });
 
-describe('Joining a game then check we can\'t run any of the game joining functions', () => {
+describe('Joining a game then check we can\'t run any of the game play functions', () => {
 
   test("Join the game as an admin player", async (done) => {
     //We've not joined a game, so this should faile
     await socket.emit('join-game', {gameId: game.game_id, tableId: 'table_1', playerName: 'Test', playerAvatar: 11, password: 'test99' });
     socket.once('success', (successMessage) => {
-      expect(successMessage).toBe('You haver successfully joined the \''+game.name+'\' game!');
+      console.log(successMessage);
+      expect(successMessage).toBe('You have successfully joined the \''+game.name+'\' game!');
       done();
     });
-    socket.once('login-errors', (errorMessage) => {
-      expect(errorMessage).toBe('You haver successfully joined the \''+game.name+'\' game!');
-      done();
-    });
+
   });
 
   test("Check we can't submit an answer before the game has started.", async (done) => {
@@ -231,6 +243,40 @@ describe('Joining a game then check we can\'t run any of the game joining functi
     socket.emit('load-next-question', true);
     socket.once('general-errors', (errorMessage) => {
       expect(errorMessage).toBe("Game has not started yet!.\n");
+      done();
+    });
+  });
+
+});
+
+
+describe('Start a game then test we can\'t any join game functions.\n', () => {
+
+  test("Start the game", async (done) => {
+    //We've not joined a game, so this should failed
+    socket.emit('start-game', {answerId: 438937, answerText: "Testing"});
+    socket.once('game-started', (gameStarted) => {
+      expect(gameStarted).toBe(true);
+      done();
+    });
+  });
+
+  test("Attempt to join a game as an admin player (again)", async (done) => {
+    //We've not joined a game, so this should faile
+    await socket.emit('join-game', {gameId: game.game_id, tableId: 'table_1', playerName: 'Test', playerAvatar: 11, password: 'test99' });
+
+    socket.once('general-errors', (errorMessage) => {
+      expect(errorMessage).toBe("You are already in a game. Quit first before joining another.\n");
+      done();
+    });
+  });
+
+
+  test("Start the game (again)", async (done) => {
+    //We've not joined a game, so this should failed
+    socket.emit('start-game', {answerId: 438937, answerText: "Testing"});
+    socket.once('general-errors', (generalErrors) => {
+      expect(generalErrors).toBe("The game has already started.\n");
       done();
     });
   });
