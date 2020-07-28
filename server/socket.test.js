@@ -5,6 +5,7 @@ var config           = require('./_config');
 var mongoose         = require('mongoose');
 const GameController = require('./controllers/Game.js');
 const GameSchema     = require('./schema/Game.js');
+var _                = require('lodash');
 
 //Connect to the database
 mongoose.connect(config.mongoDatabaseString, {useNewUrlParser: true, useUnifiedTopology: true});
@@ -14,9 +15,12 @@ GameSchema.loadClass(GameController);
 let Game = mongoose.model('Game', GameSchema);
 let socket;
 let game;
-let player;
-let lastErrorMessage = "";
+let gamePlayer;
+let lastErrorMessage   = "";
 let lastSuccessMessage = "";
+let questionIds        = [];
+let questions          = [];
+let currentQuestion;
 /**
  * Setup WS & HTTP servers
  */
@@ -41,6 +45,11 @@ beforeAll( async (done) => {
     throw 'No game to test with found';
   }
 
+  game.questions.forEach(question => {
+    questions[question.id] = question;
+    questionIds.push(question.id);
+  });
+
   //Reset the game (if required)
   game.game_started      = 0;
   game.game_completed    = 0;
@@ -57,8 +66,13 @@ beforeAll( async (done) => {
   socket.on('success', (successMessage) => {
     lastSuccessMessage = successMessage;
   });
-  socket.on('player', (sentPlayer) => {
-    player = sentPlayer;
+
+  socket.on('load-question', (question) => {
+    currentQuestion        = _.cloneDeep(question);
+  });
+
+  socket.on('joined-game', (player) => {
+    gamePlayer = player;
   });
 
 });
@@ -213,7 +227,6 @@ describe('Joining a game then check we can\'t run any of the game play functions
     //We've not joined a game, so this should faile
     await socket.emit('join-game', {gameId: game.game_id, tableId: 'table_1', playerName: 'Test', playerAvatar: 11, password: 'test99' });
     socket.once('success', (successMessage) => {
-      console.log(successMessage);
       expect(successMessage).toBe('You have successfully joined the \''+game.name+'\' game!');
       done();
     });
@@ -224,7 +237,7 @@ describe('Joining a game then check we can\'t run any of the game play functions
     //We've not joined a game, so this should failed
     socket.emit('submit-answer', {answerId: 438937, answerText: "Testing"});
     socket.once('general-errors', (errorMessage) => {
-      expect(errorMessage).toBe("Game has not started yet!.\nWe're not marking that question anymore. :-(\nYou must enter an answer for marking!\n");
+      expect(errorMessage).toBe("Game has not started yet!\nAdmin users cannot submit an answer.\nWe're not marking that question anymore. :-(\nYou must enter an answer for marking!\n");
       done();
     });
   });
@@ -233,7 +246,7 @@ describe('Joining a game then check we can\'t run any of the game play functions
     //We've not joined a game, so this should faile
     socket.emit('mark-answer', { answerCorrect: true, questionId: 3647, playerUUID: 'kdjhfd-343uy4-3y43yu3' });
     socket.once('general-errors', (errorMessage) => {
-      expect(errorMessage).toBe("Game has not started yet!.\nCould not find that question.\nCould not find that player.\n");
+      expect(errorMessage).toBe("Game has not started yet!\nCould not find that question.\nCould not find that player.\n");
       done();
     });
   });
@@ -242,7 +255,7 @@ describe('Joining a game then check we can\'t run any of the game play functions
     //We've not joined a game, so this should faile
     socket.emit('load-next-question', true);
     socket.once('general-errors', (errorMessage) => {
-      expect(errorMessage).toBe("Game has not started yet!.\n");
+      expect(errorMessage).toBe("Game has not started yet!\n");
       done();
     });
   });
@@ -254,7 +267,7 @@ describe('Start a game then test we can\'t any join game functions.\n', () => {
 
   test("Start the game", async (done) => {
     //We've not joined a game, so this should failed
-    socket.emit('start-game', {answerId: 438937, answerText: "Testing"});
+    socket.emit('start-game', true);
     socket.once('game-started', (gameStarted) => {
       expect(gameStarted).toBe(true);
       done();
@@ -274,12 +287,33 @@ describe('Start a game then test we can\'t any join game functions.\n', () => {
 
   test("Start the game (again)", async (done) => {
     //We've not joined a game, so this should failed
-    socket.emit('start-game', {answerId: 438937, answerText: "Testing"});
+    await socket.emit('start-game', true);
     socket.once('general-errors', (generalErrors) => {
       expect(generalErrors).toBe("The game has already started.\n");
       done();
     });
   });
 
+});
+
+
+describe('Test the question functions are working as expected (For the admin).\n', () => {
+
+
+
+  test("Attempt to answer a question (as an admin)", async (done) => {
+    //We've not joined a game, so this should failed
+
+
+    await socket.emit('submit-answer', {answerId: currentQuestion.id, answerText: "Testing", playerUUID: gamePlayer.uuid });
+    socket.once('general-errors', (errorMessage) => {
+      console.log(errorMessage);
+      expect(errorMessage).toBe("Admin users cannot submit an answer.\nWe're not marking that question anymore. :-(\nYou must enter an answer for marking!\n");
+      done();
+    });
+  });
+
+
 
 });
+

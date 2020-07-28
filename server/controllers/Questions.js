@@ -19,7 +19,6 @@ class QuestionController {
   }
 
   loadNextQuestion() {
-    console.log('question num:'+this.nextQuestion);
     //Get the next question to load
     var currentQuestionObject = {};
     if(!this.noMoreQuestions) {
