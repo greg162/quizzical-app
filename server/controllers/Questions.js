@@ -3,14 +3,10 @@ var _ = require('lodash');
 class QuestionController {
   constructor(questions, nextQuestionKey) {
     this.nextQuestion    = nextQuestionKey;
-    this.questions       = [];
-    this.questionIds     = [];
-    questions.forEach(question => {
-      this.questions[question.id] = question;
-      this.questionIds.push(question.id);
-    });
+    this.questions       = questions;
 
-    if(typeof this.nextQuestion == 'undefined') {
+
+    if(typeof this.nextQuestion == 'undefined' || !this.nextQuestion)  {
       this.nextQuestion = 0;
     }
 
@@ -22,8 +18,9 @@ class QuestionController {
     //Get the next question to load
     var currentQuestionObject = {};
     if(!this.noMoreQuestions) {
-      var questionId            = this.questionIds[this.nextQuestion];
-      var question              = _.cloneDeep(this.questions[questionId]);
+      console.log(this.questions);
+      console.log(this.nextQuestion);
+      var question              = _.cloneDeep(this.questions[this.nextQuestion]);
       if(question) {
         var currentQuestionObject = {
           id: question.id,
