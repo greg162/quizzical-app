@@ -177,7 +177,7 @@ server.listen(1337);
 
     socket.on('start-game', async function(startGame) {
       var errors = "";
-      if(!startGame)             { errors += "Start socket.game variable not detected!"; }
+      if(!startGame)                                                                                                    { errors += "Start socket.game variable not detected!"; }
       if(typeof socket.game == 'undefined' || socket.game.game_id == 'undefined' || !socket.game.game_id)               { errors += "We could not find the game that should be starting\n"; }
       else if(socket.game.game_started)                                                                                 { errors += "The game has already started.\n"; }
       if( typeof socket.player == 'undefined' || typeof socket.player.isAdmin == 'undefined' || !socket.player.isAdmin) { errors += "You are not an admin player.\n"; }
@@ -195,7 +195,6 @@ server.listen(1337);
 
           socket.game.current_question     = socket.questions.loadNextQuestion();
           socket.game.current_question_key = socket.questions.nextQuestion - 1;
-
           socket.to(socket.game.getGameId()).emit('load-question', socket.game.current_question);
           socket.emit('load-question', socket.game.current_question);
 
@@ -262,14 +261,9 @@ server.listen(1337);
         if(!socket.game.game_started)                                     { errors += "Game has not started yet!\n"; }
         if(socket.player.isAdmin)                                         { errors += "Admin users cannot submit an answer.\n"; }
 
-        if(
-          typeof answerForMarking.answerId != 'undefined' ||
-          answerForMarking.answerId !== socket.game.current_question.id
-        ) { errors += "We're not marking that question anymore. :-(\n"; }
-        if(
-          typeof  !answerForMarking.answerText != 'undefined' ||
-          !answerForMarking.answerText
-        )                                                                 { errors += "You must enter an answer for marking!\n"; }
+        if( typeof answerForMarking.answerId == 'undefined')                                    { errors += "We could not find the question ID you submitted.\n"; }
+        else if( answerForMarking.answerId !== socket.game.current_question.id )                { errors += "We're not marking that question anymore. :-(\n"; }
+        if( typeof answerForMarking.answerText == 'undefined' || !answerForMarking.answerText ) { errors += "You must enter an answer for marking!\n"; }
 
         //Validate the player.
         if(typeof socket.player == 'undefined')                           { errors += "Player not found!.\n"; }
@@ -332,9 +326,12 @@ server.listen(1337);
     });
 
 
-    socket.on('load-next-question', (nextQuestion) => {
+    socket.on('load-next-question', async (nextQuestion) => {
       var errors = "";
       if(typeof socket.game != 'undefined' && socket.game.game_id != 'undefined' && socket.game.game_id) {
+        socket.game =  await Game.findOne({game_id: socket.game.game_id}).exec().catch((err) => {
+          console.log(err)
+        });
         if(!socket.game.game_started)            { errors += "Game has not started yet!\n"; }
         if(!nextQuestion)                        { errors += "You don't want to load the next question.\n"; }
         if(typeof socket.player == 'undefined' ) { errors += "You are not an admin player.\n"; }
