@@ -25,17 +25,19 @@ let currentQuestion;
  * Setup WS & HTTP servers
  */
 beforeAll( async (done) => {
-  socket = io.connect(`http://localhost:1337`, {
+  adminConnection = await io.connect(`http://localhost:1337`, {
     'reconnection delay': 0,
     'reopen delay': 0,
     'force new connection': true,
     transports: ['websocket'],
   });
-  socket.on('connect', () => {
-    done();
+
+  playerConnection = await io.connect(`http://localhost:1337`, {
+    'reconnection delay': 0,
+    'reopen delay': 0,
+    'force new connection': true,
+    transports: ['websocket'],
   });
-
-
 
   game =  await Game.findOne({game_id: 'IzzZhRSjhS'}).exec().catch((err) => {
     console.log(err)
@@ -57,31 +59,38 @@ beforeAll( async (done) => {
   game.players           = [];
   game.admin_socket_id   = "";
   game.current_question  = {};
-  current_question_key   = "";
+  game.current_question_key = "";
   await game.save();
 
-  socket.on('general-errors', (errorMessage) => {
+  adminConnection.on('general-errors', (errorMessage) => {
     lastErrorMessage = errorMessage;
   });
-  socket.on('success', (successMessage) => {
+  adminConnection.on('success', (successMessage) => {
     lastSuccessMessage = successMessage;
   });
 
-  socket.on('load-question', (question) => {
-    currentQuestion        = _.cloneDeep(question);
+  adminConnection.on('load-question', (question) => {
+    currentQuestion = _.cloneDeep(question);
   });
 
-  socket.on('joined-game', (player) => {
+  playerConnection.on('load-question', (question) => {
+    console.log(question);
+    currentQuestion = _.cloneDeep(question);
+  });
+
+  adminConnection.on('joined-game', (player) => {
     gamePlayer = player;
   });
 
+
+  done();
 });
 
 /**
  *  Cleanup WS & HTTP servers
  */
 afterAll(async (done) => {
-  socket.disconnect();
+  adminConnection.disconnect();
   let Game = await mongoose.model('Game', GameSchema);
   game     = await Game.findOne({game_id: game.game_id}).exec().catch((err) => {
     console.log(err)
@@ -93,7 +102,7 @@ afterAll(async (done) => {
   game.have_admin_player = 0;
   game.players           = [];
   game.admin_socket_id   = "";
-  await game.save();
+  //await game.save();
   done();
 
 
@@ -104,8 +113,8 @@ afterAll(async (done) => {
 describe('Test that all of the submit answer functions fail gracefully if not connected', () => {
   test("Check we can't send a message as we've not connected yet.", async (done) => {
     //We've not joined a game, so this should faile
-    socket.emit('chat-message', "");
-    socket.once('general-errors', (errorMessage) => {
+    adminConnection.emit('chat-message', "");
+    adminConnection.once('general-errors', (errorMessage) => {
       expect(errorMessage).toBe('Game not found!');
       done();
     });
@@ -114,8 +123,8 @@ describe('Test that all of the submit answer functions fail gracefully if not co
   test("Check we can't submit an answer as we've not connected yet.", async (done) => {
 
     //We've not joined a game, so this should failed
-    socket.emit('submit-answer', {answerId: 438937, answerText: "Testing"});
-    socket.once('general-errors', (errorMessage) => {
+    adminConnection.emit('submit-answer', {answerId: 438937, answerText: "Testing"});
+    adminConnection.once('general-errors', (errorMessage) => {
       expect(errorMessage).toBe('Game not found!');
       done();
     });
@@ -125,8 +134,8 @@ describe('Test that all of the submit answer functions fail gracefully if not co
   test("Check that we can't start a game before joining", async (done) => {
 
     //We've not joined a game, so this should faile
-    socket.emit('start-game', true);
-    socket.once('general-errors', (errorMessage) => {
+    adminConnection.emit('start-game', true);
+    adminConnection.once('general-errors', (errorMessage) => {
       expect(errorMessage).toBe("We could not find the game that should be starting\nYou are not an admin player.\n");
       done();
     });
@@ -135,8 +144,8 @@ describe('Test that all of the submit answer functions fail gracefully if not co
   test("Check that we can't mark an answer before joining a game", async (done) => {
 
     //We've not joined a game, so this should faile
-    socket.emit('mark-answer', { answerCorrect: true, questionId: 3647, playerUUID: 'kdjhfd-343uy4-3y43yu3' });
-    socket.once('general-errors', (errorMessage) => {
+    adminConnection.emit('mark-answer', { answerCorrect: true, questionId: 3647, playerUUID: 'kdjhfd-343uy4-3y43yu3' });
+    adminConnection.once('general-errors', (errorMessage) => {
       expect(errorMessage).toBe('Cannot submit answer for marking! Game not found!');
       done();
     });
@@ -145,8 +154,8 @@ describe('Test that all of the submit answer functions fail gracefully if not co
   test("Check that we can't go the next question before joining a game", async (done) => {
 
     //We've not joined a game, so this should faile
-    socket.emit('load-next-question', true);
-    socket.once('general-errors', (errorMessage) => {
+    adminConnection.emit('load-next-question', true);
+    adminConnection.once('general-errors', (errorMessage) => {
       expect(errorMessage).toBe('Cannot load next question! Game not found!');
       done();
     });
@@ -157,8 +166,8 @@ describe('Test the game joining functions', () => {
 
   test("Attempt to join a game with no game ID", async (done) => {
     //We've not joined a game, so this should faile
-    await socket.emit('join-game', {});
-    socket.once('general-errors', (errorMessage) => {
+    await adminConnection.emit('join-game', {});
+    adminConnection.once('general-errors', (errorMessage) => {
       expect(errorMessage).toBe("Cannot join game! No Game ID found!\nCannot join game! No table found!\n");
       done();
     });
@@ -166,8 +175,8 @@ describe('Test the game joining functions', () => {
 
   test("Attempt to join a game with no table", async (done) => {
     //We've not joined a game, so this should faile
-    await socket.emit('join-game', {gameId: game.game_id});
-    socket.once('general-errors', (errorMessage) => {
+    await adminConnection.emit('join-game', {gameId: game.game_id});
+    adminConnection.once('general-errors', (errorMessage) => {
       expect(errorMessage).toBe("Cannot join game! No table found!\n");
       done();
     });
@@ -175,49 +184,59 @@ describe('Test the game joining functions', () => {
 
   test("Attempt to join a game with no player details", async (done) => {
     //We've not joined a game, so this should faile
-    await socket.emit('join-game', {gameId: game.game_id, tableId: 'table_1'});
-    socket.once('login-errors', (errorMessage) => {
+    await adminConnection.emit('join-game', {gameId: game.game_id, tableId: 'table_1'});
+    adminConnection.once('login-errors', (errorMessage) => {
       expect(errorMessage).toBe("You must enter a name!\nYou must select an avatar!\n");
       done();
     });
   });
 
-  test("Attempt to join a gamer with no player name", async (done) => {
+  test("Attempt to join a game with no player name", async (done) => {
     //We've not joined a game, so this should faile
-    await socket.emit('join-game', {gameId: game.game_id, tableId: 'table_1', playerAvatar: 11, password: 'test99' });
-    socket.once('login-errors', (errorMessage) => {
+    await adminConnection.emit('join-game', {gameId: game.game_id, tableId: 'table_1', playerAvatar: 11, password: 'test99' });
+    adminConnection.once('login-errors', (errorMessage) => {
       expect(errorMessage).toBe("You must enter a name!\n");
       done();
     });
 
   });
 
-  test("Attempt to join a gamer with a player name over 30 characters long", async (done) => {
+  test("Attempt to join a game with a player name over 30 characters long", async (done) => {
     //We've not joined a game, so this should faile
-    await socket.emit('join-game', {gameId: game.game_id, tableId: 'table_1', playerName: 'dfjlksdjhflsdkjhfsdlkjadhgfkjashdgfdkjshagfkjashgdfkdjshagfkjdshagfkjashdgfkjhsagfkjdhg', playerAvatar: 11, password: 'test99' });
-    socket.once('login-errors', (errorMessage) => {
+    await adminConnection.emit('join-game', {gameId: game.game_id, tableId: 'table_1', playerName: 'dfjlksdjhflsdkjhfsdlkjadhgfkjashdgfdkjshagfkjashgdfkdjshagfkjdshagfkjashdgfkjhsagfkjdhg', playerAvatar: 11, password: 'test99' });
+    adminConnection.once('login-errors', (errorMessage) => {
       expect(errorMessage).toBe("Your name cannot be longer than 30 characters!\n");
       done();
     });
   });
 
-  test("Attempt to join a gamer with no player avatar", async (done) => {
+  test("Attempt to join a game with no player avatar", async (done) => {
     //We've not joined a game, so this should faile
-    await socket.emit('join-game', {gameId: game.game_id, playerName: 'Test', tableId: 'table_1', password: 'test99' });
-    socket.once('login-errors', (errorMessage) => {
+    await adminConnection.emit('join-game', {gameId: game.game_id, playerName: 'Test', tableId: 'table_1', password: 'test99' });
+    adminConnection.once('login-errors', (errorMessage) => {
       expect(errorMessage).toBe("You must select an avatar!\n");
       done();
     });
   });
 
-  test("Attempt to join a gamer with a player avatar that doesn't exist", async (done) => {
+  test("Attempt to join a game with a player avatar that doesn't exist", async (done) => {
     //We've not joined a game, so this should faile
-    await socket.emit('join-game', {gameId: game.game_id, tableId: 'table_1', playerName: 'Test', playerAvatar: 'fish', password: 'test99' });
-    socket.once('login-errors', (errorMessage) => {
+    await adminConnection.emit('join-game', {gameId: game.game_id, tableId: 'table_1', playerName: 'Test', playerAvatar: 'fish', password: 'test99' });
+    adminConnection.once('login-errors', (errorMessage) => {
       expect(errorMessage).toBe("Avatar not found!\n");
       done();
     });
   });
+
+  test("Attempt to join a game with the incorrect password", async (done) => {
+    //We've not joined a game, so this should faile
+    await adminConnection.emit('join-game', {gameId: game.game_id, tableId: 'table_1', playerName: 'Test', playerAvatar: 11, password: 'test9999' });
+    adminConnection.once('login-errors', (errorMessage) => {
+      expect(errorMessage).toBe("The password you entered is not valid!\n");
+      done();
+    });
+  });
+
 
 });
 
@@ -225,8 +244,19 @@ describe('Joining a game then check we can\'t run any of the game play functions
 
   test("Join the game as an admin player", async (done) => {
     //We've not joined a game, so this should faile
-    await socket.emit('join-game', {gameId: game.game_id, tableId: 'table_1', playerName: 'Test', playerAvatar: 11, password: 'test99' });
-    socket.once('success', (successMessage) => {
+    await adminConnection.emit('join-game', {gameId: game.game_id, tableId: 'table_1', playerName: 'User - Admin', playerAvatar: 11, password: 'test99' });
+    adminConnection.once('success', (successMessage) => {
+      expect(successMessage).toBe('You have successfully joined the \''+game.name+'\' game!');
+      done();
+    });
+
+  });
+
+
+  test("Join the game as a normal player", async (done) => {
+    //We've not joined a game, so this should faile
+    await playerConnection.emit('join-game', {gameId: game.game_id, tableId: 'table_1', playerName: 'User - Player', playerAvatar: 28, password: '' });
+    playerConnection.once('success', (successMessage) => {
       expect(successMessage).toBe('You have successfully joined the \''+game.name+'\' game!');
       done();
     });
@@ -235,17 +265,17 @@ describe('Joining a game then check we can\'t run any of the game play functions
 
   test("Check we can't submit an answer before the game has started.", async (done) => {
     //We've not joined a game, so this should failed
-    socket.emit('submit-answer', {answerId: 438937, answerText: "Testing"});
-    socket.once('general-errors', (errorMessage) => {
-      expect(errorMessage).toBe("Game has not started yet!\nAdmin users cannot submit an answer.\nWe're not marking that question anymore. :-(\nYou must enter an answer for marking!\n");
+    adminConnection.emit('submit-answer', {answerId: 438937, answerText: "Testing"});
+    adminConnection.once('general-errors', (errorMessage) => {
+      expect(errorMessage).toBe("Game has not started yet!\nAdmin users cannot submit an answer.\nWe're not marking that question anymore. :-(\n");
       done();
     });
   });
 
   test("Check that we can't mark an answer before the game has started.", async (done) => {
     //We've not joined a game, so this should faile
-    socket.emit('mark-answer', { answerCorrect: true, questionId: 3647, playerUUID: 'kdjhfd-343uy4-3y43yu3' });
-    socket.once('general-errors', (errorMessage) => {
+    adminConnection.emit('mark-answer', { answerCorrect: true, questionId: 3647, playerUUID: 'kdjhfd-343uy4-3y43yu3' });
+    adminConnection.once('general-errors', (errorMessage) => {
       expect(errorMessage).toBe("Game has not started yet!\nCould not find that question.\nCould not find that player.\n");
       done();
     });
@@ -253,8 +283,8 @@ describe('Joining a game then check we can\'t run any of the game play functions
 
   test("Check that we can't go the next question before the game has started.", async (done) => {
     //We've not joined a game, so this should faile
-    socket.emit('load-next-question', true);
-    socket.once('general-errors', (errorMessage) => {
+    adminConnection.emit('load-next-question', true);
+    adminConnection.once('general-errors', (errorMessage) => {
       expect(errorMessage).toBe("Game has not started yet!\n");
       done();
     });
@@ -267,8 +297,8 @@ describe('Start a game then test we can\'t any join game functions.\n', () => {
 
   test("Start the game", async (done) => {
     //We've not joined a game, so this should failed
-    socket.emit('start-game', true);
-    socket.once('game-started', (gameStarted) => {
+    adminConnection.emit('start-game', true);
+    adminConnection.once('game-started', (gameStarted) => {
       expect(gameStarted).toBe(true);
       done();
     });
@@ -276,9 +306,9 @@ describe('Start a game then test we can\'t any join game functions.\n', () => {
 
   test("Attempt to join a game as an admin player (again)", async (done) => {
     //We've not joined a game, so this should faile
-    await socket.emit('join-game', {gameId: game.game_id, tableId: 'table_1', playerName: 'Test', playerAvatar: 11, password: 'test99' });
+    await adminConnection.emit('join-game', {gameId: game.game_id, tableId: 'table_1', playerName: 'Test', playerAvatar: 11, password: 'test99' });
 
-    socket.once('general-errors', (errorMessage) => {
+    adminConnection.once('general-errors', (errorMessage) => {
       expect(errorMessage).toBe("You are already in a game. Quit first before joining another.\n");
       done();
     });
@@ -287,8 +317,8 @@ describe('Start a game then test we can\'t any join game functions.\n', () => {
 
   test("Start the game (again)", async (done) => {
     //We've not joined a game, so this should failed
-    await socket.emit('start-game', true);
-    socket.once('general-errors', (generalErrors) => {
+    await adminConnection.emit('start-game', true);
+    adminConnection.once('general-errors', (generalErrors) => {
       expect(generalErrors).toBe("The game has already started.\n");
       done();
     });
@@ -297,22 +327,34 @@ describe('Start a game then test we can\'t any join game functions.\n', () => {
 });
 
 
-describe('Test the question functions are working as expected (For the admin).\n', () => {
+describe('Test the question functions are working as expected.\n', () => {
 
+  test("Check the current question is the first in the database.", async (done) => {
 
-
-  test("Attempt to answer a question (as an admin)", async (done) => {
-    //We've not joined a game, so this should failed
-
-
-    await socket.emit('submit-answer', {answerId: currentQuestion.id, answerText: "Testing", playerUUID: gamePlayer.uuid });
-    socket.once('general-errors', (errorMessage) => {
-      console.log(errorMessage);
-      expect(errorMessage).toBe("Admin users cannot submit an answer.\nWe're not marking that question anymore. :-(\nYou must enter an answer for marking!\n");
+      expect(currentQuestion.id).toBe(game.questions[0].id);
       done();
-    });
+ 
   });
 
+/*
+  test("Attempt to answer a question (as an admin)", async (done) => {
+    await adminConnection.emit('submit-answer', {answerId: currentQuestion.id, answerText: "Testing", playerUUID: gamePlayer.uuid });
+    adminConnection.once('general-errors', (errorMessage) => {
+      expect(errorMessage).toBe("Admin users cannot submit an answer.\n");
+      done();
+    });
+  
+  });*/
+
+
+  test("Attempt to go to the next question (as a player)", async (done) => {
+    await playerConnection.emit('load-next-question', {answerId: currentQuestion.id, answerText: "Testing", playerUUID: gamePlayer.uuid });
+    playerConnection.once('general-errors', (errorMessage) => {
+      expect(errorMessage).toBe("You are not an admin player.\n");
+      done();
+    });
+  
+  });
 
 
 });
