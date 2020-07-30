@@ -271,8 +271,8 @@ server.listen(1337);
         else if(socket.game.userAnsweredQuestion(socket.player.uuid))     { errors += "You've already answered that question!\n"; }
         if(errors) { socket.emit('general-errors', errors); }
         else {
-          console.log("Passing answer to admin for marking:"+socket.game.admin_socket_id)
           io.to(socket.game.admin_socket_id).emit('answer-for-marking', answerForMarking);
+          socket.emit('success', 'Answer successfully sent.');
         }
       }else {
         socket.emit('general-errors', 'Game not found!');

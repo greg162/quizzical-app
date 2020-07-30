@@ -13,14 +13,18 @@ var db = mongoose.connection;
 
 GameSchema.loadClass(GameController);
 let Game = mongoose.model('Game', GameSchema);
-let socket;
 let game;
 let gamePlayer;
+let adminPlayer;
 let lastErrorMessage   = "";
 let lastSuccessMessage = "";
 let questionIds        = [];
 let questions          = [];
 let currentQuestion;
+let answerForMarking;
+let gotPoint;
+
+
 /**
  * Setup WS & HTTP servers
  */
@@ -57,6 +61,7 @@ beforeAll( async (done) => {
   game.game_completed    = 0;
   game.have_admin_player = 0;
   game.players           = [];
+  game.answers           = [];
   game.admin_socket_id   = "";
   game.current_question  = {};
   game.current_question_key = "";
@@ -74,12 +79,27 @@ beforeAll( async (done) => {
   });
 
   playerConnection.on('load-question', (question) => {
-    console.log(question);
     currentQuestion = _.cloneDeep(question);
   });
 
   adminConnection.on('joined-game', (player) => {
+    adminPlayer = player;
+  });
+
+  playerConnection.on('joined-game', (player) => {
     gamePlayer = player;
+  });
+
+  adminConnection.on('answer-for-marking', (answer) => {
+    answerForMarking = answer;
+  });
+
+  playerConnection.on('updated-player-score', (playerScore, pointReturner, playerUUID) => {
+    if(gamePlayer.uuid == playerUUID) {
+      gamePlayer.score        = parseInt(playerScore);
+      gamePlayer.scoreUpdated = true;
+    }
+    gotPoint = pointReturner;
   });
 
 
@@ -327,28 +347,27 @@ describe('Start a game then test we can\'t any join game functions.\n', () => {
 });
 
 
-describe('Test the question functions are working as expected.\n', () => {
+describe('Test the question submission functions are working as expected.\n', () => {
 
   test("Check the current question is the first in the database.", async (done) => {
-
       expect(currentQuestion.id).toBe(game.questions[0].id);
       done();
  
   });
 
-/*
+
   test("Attempt to answer a question (as an admin)", async (done) => {
-    await adminConnection.emit('submit-answer', {answerId: currentQuestion.id, answerText: "Testing", playerUUID: gamePlayer.uuid });
+    await adminConnection.emit('submit-answer', {answerId: currentQuestion.id, answerText: "Testing" });
     adminConnection.once('general-errors', (errorMessage) => {
       expect(errorMessage).toBe("Admin users cannot submit an answer.\n");
       done();
     });
   
-  });*/
+  });
 
 
   test("Attempt to go to the next question (as a player)", async (done) => {
-    await playerConnection.emit('load-next-question', {answerId: currentQuestion.id, answerText: "Testing", playerUUID: gamePlayer.uuid });
+    await playerConnection.emit('load-next-question', true);
     playerConnection.once('general-errors', (errorMessage) => {
       expect(errorMessage).toBe("You are not an admin player.\n");
       done();
@@ -357,5 +376,84 @@ describe('Test the question functions are working as expected.\n', () => {
   });
 
 
+  test("Answer a question as  (as a player)", async (done) => {
+    await playerConnection.emit('submit-answer', {answerId: currentQuestion.id, answerText: "Testing", playerUUID: gamePlayer.uuid });
+    playerConnection.once('success', (success) => {
+      expect(success).toBe("Answer successfully sent.");
+      done();
+    });
+  });
+
+
+  test("Check the admin received the correct answer", async (done) => {
+    expect([answerForMarking.answerText,answerForMarking.answerId, answerForMarking.playerUUID]).toEqual(["Testing", currentQuestion.id, gamePlayer.uuid]);
+    done();
+  });
+
+
 });
 
+describe('Check the answer marking functions are working as expected.\n', () => {
+
+  test("Send no question ID and check error message", async (done) => {
+    adminConnection.emit('mark-answer', { answerCorrect: true, playerUUID: gamePlayer.uuid });
+    adminConnection.once('general-errors', (errors) => {
+      expect(errors).toBe("No question ID was sent.\n");
+      done();
+    });
+  });
+
+  test("Send no player ID and check error message", async (done) => {
+    adminConnection.emit('mark-answer', { answerCorrect: true/*, playerUUID: gamePlayer.uuid*/, questionId: currentQuestion.id });
+    adminConnection.once('general-errors', (errors) => {
+      expect(errors).toBe("No player ID was sent.\n");
+      done();
+    });
+  });
+
+  test("Send no Answer and check error message", async (done) => {
+    adminConnection.emit('mark-answer', { /*answerCorrect: true,*/ playerUUID: gamePlayer.uuid, questionId: currentQuestion.id });
+    adminConnection.once('general-errors', (errors) => {
+      expect(errors).toBe("Answer correct value not sent.\n");
+      done();
+    });
+  });
+
+  test("Send invalid question ID", async (done) => {
+    adminConnection.emit('mark-answer', { answerCorrect: true, playerUUID: gamePlayer.uuid, questionId: '485974' });
+    adminConnection.once('general-errors', (errors) => {
+      expect(errors).toBe("Could not find that question.\n");
+      done();
+    });
+  });
+
+  test("Send invalid player ID", async (done) => {
+    adminConnection.emit('mark-answer', { answerCorrect: true, playerUUID: 'hjhgjhgjhgjhg', questionId: currentQuestion.id });
+    adminConnection.once('general-errors', (errors) => {
+      expect(errors).toBe("Could not find that player.\n");
+      done();
+    });
+  });
+
+  test("Mark the answer as true.", async (done) => {
+    adminConnection.emit('mark-answer', { answerCorrect: true, playerUUID: gamePlayer.uuid, questionId: currentQuestion.id });
+    playerConnection.once('success', (success) => {
+      expect(success).toBe(`You got '${currentQuestion.question}' correct.\n`);
+      done();
+    });
+  });
+
+  test("Answer a question as the player again - After marking", async (done) => {
+    await playerConnection.emit('submit-answer', {answerId: currentQuestion.id, answerText: "Testing", playerUUID: gamePlayer.uuid });
+    playerConnection.once('general-errors', (errors) => {
+      expect(errors).toBe("You've already answered that question!\n");
+      done();
+    });
+  });
+});
+
+describe('Check the go to next question system..\n', () => {
+
+
+
+});

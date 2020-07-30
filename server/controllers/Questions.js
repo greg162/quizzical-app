@@ -18,8 +18,6 @@ class QuestionController {
     //Get the next question to load
     var currentQuestionObject = {};
     if(!this.noMoreQuestions) {
-      console.log(this.questions);
-      console.log(this.nextQuestion);
       var question              = _.cloneDeep(this.questions[this.nextQuestion]);
       if(question) {
         var currentQuestionObject = {
