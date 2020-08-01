@@ -259,6 +259,7 @@ server.listen(1337);
         });
         if(!socket.game)                                                  { errors += "Game not found!\n"; } //If we've lost the game, just disconnect the user.
         if(!socket.game.game_started)                                     { errors += "Game has not started yet!\n"; }
+        else if(socket.game.game_completed)                               { errors += "The game is over!\n"; }
         if(socket.player.isAdmin)                                         { errors += "Admin users cannot submit an answer.\n"; }
 
         if( typeof answerForMarking.answerId == 'undefined')                                    { errors += "We could not find the question ID you submitted.\n"; }
@@ -290,6 +291,7 @@ server.listen(1337);
         });
         if(!socket.game)                                              { errors += "Game not found!"; } //If we've lost the game, just disconnect the user.
         if(!socket.game.game_started)                                 { errors += "Game has not started yet!\n"; }
+        else if(socket.game.game_completed)                           { errors += "The game is over!\n"; }
         if(typeof markedAnswer.questionId == 'undefined')             { errors += "No question ID was sent.\n"; }
         else if(!socket.game.questionExists(markedAnswer.questionId)) { errors += "Could not find that question.\n"; }
         if(typeof markedAnswer.playerUUID == 'undefined')             { errors += "No player ID was sent.\n"; }
@@ -334,6 +336,7 @@ server.listen(1337);
           console.log(err)
         });
         if(!socket.game.game_started)            { errors += "Game has not started yet!\n"; }
+        else if(socket.game.game_completed)      { errors += "The game is over!\n"; }
         if(!nextQuestion)                        { errors += "You don't want to load the next question.\n"; }
         if(typeof socket.player == 'undefined' ) { errors += "You are not an admin player.\n"; }
         else if(

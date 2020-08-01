@@ -24,6 +24,8 @@ let currentQuestion;
 let answerForMarking;
 let gotPoint;
 let playerOneScore = 0;
+let playerGameCompleted = false;
+let adminGameCompleted  = false;
 
 
 /**
@@ -50,6 +52,10 @@ beforeAll( async (done) => {
 
   if(typeof game.game_id == 'undefined') {
     throw 'No game to test with found';
+  }
+
+  if(game.questions.length !== 3) { //TODO: Make it so that any number of questions can be tested.
+    throw 'The test game must have three questions';
   }
 
   game.questions.forEach(question => {
@@ -91,6 +97,14 @@ beforeAll( async (done) => {
     gamePlayer = player;
   });
 
+  playerConnection.on('game-complete', (gameCompleted) => {
+    playerGameCompleted = gameCompleted;
+  });
+  
+  adminConnection.on('game-complete', (gameCompleted) => {
+    adminGameCompleted = gameCompleted;
+  });
+
   adminConnection.on('answer-for-marking', (answer) => {
     answerForMarking = answer;
   });
@@ -100,7 +114,6 @@ beforeAll( async (done) => {
       playerOneScore = playerScore;
     }
   });
-
 
   playerConnection.on('updated-player-score', (playerScore, pointReturner, playerUUID) => {
     if(gamePlayer.uuid == playerUUID) {
@@ -139,6 +152,7 @@ afterAll(async (done) => {
 
 
 describe('Test that all of the submit answer functions fail gracefully if not connected', () => {
+
   test("Check we can't send a message as we've not connected yet.", async (done) => {
     //We've not joined a game, so this should faile
     adminConnection.emit('chat-message', "");
@@ -148,8 +162,8 @@ describe('Test that all of the submit answer functions fail gracefully if not co
     });
   });
 
-  test("Check we can't submit an answer as we've not connected yet.", async (done) => {
 
+  test("Check we can't submit an answer as we've not connected yet.", async (done) => {
     //We've not joined a game, so this should failed
     adminConnection.emit('submit-answer', {answerId: 438937, answerText: "Testing"});
     adminConnection.once('general-errors', (errorMessage) => {
@@ -169,8 +183,8 @@ describe('Test that all of the submit answer functions fail gracefully if not co
     });
   });
 
-  test("Check that we can't mark an answer before joining a game", async (done) => {
 
+  test("Check that we can't mark an answer before joining a game", async (done) => {
     //We've not joined a game, so this should faile
     adminConnection.emit('mark-answer', { answerCorrect: true, questionId: 3647, playerUUID: 'kdjhfd-343uy4-3y43yu3' });
     adminConnection.once('general-errors', (errorMessage) => {
@@ -179,8 +193,8 @@ describe('Test that all of the submit answer functions fail gracefully if not co
     });
   });
 
-  test("Check that we can't go the next question before joining a game", async (done) => {
 
+  test("Check that we can't go the next question before joining a game", async (done) => {
     //We've not joined a game, so this should faile
     adminConnection.emit('load-next-question', true);
     adminConnection.once('general-errors', (errorMessage) => {
@@ -201,6 +215,7 @@ describe('Test the game joining functions', () => {
     });
   });
 
+
   test("Attempt to join a game with no table", async (done) => {
     //We've not joined a game, so this should faile
     await adminConnection.emit('join-game', {gameId: game.game_id});
@@ -210,6 +225,7 @@ describe('Test the game joining functions', () => {
     });
   });
 
+
   test("Attempt to join a game with no player details", async (done) => {
     //We've not joined a game, so this should faile
     await adminConnection.emit('join-game', {gameId: game.game_id, tableId: 'table_1'});
@@ -218,6 +234,7 @@ describe('Test the game joining functions', () => {
       done();
     });
   });
+
 
   test("Attempt to join a game with no player name", async (done) => {
     //We've not joined a game, so this should faile
@@ -229,6 +246,7 @@ describe('Test the game joining functions', () => {
 
   });
 
+
   test("Attempt to join a game with a player name over 30 characters long", async (done) => {
     //We've not joined a game, so this should faile
     await adminConnection.emit('join-game', {gameId: game.game_id, tableId: 'table_1', playerName: 'dfjlksdjhflsdkjhfsdlkjadhgfkjashdgfdkjshagfkjashgdfkdjshagfkjdshagfkjashdgfkjhsagfkjdhg', playerAvatar: 11, password: 'test99' });
@@ -237,6 +255,7 @@ describe('Test the game joining functions', () => {
       done();
     });
   });
+
 
   test("Attempt to join a game with no player avatar", async (done) => {
     //We've not joined a game, so this should faile
@@ -247,6 +266,7 @@ describe('Test the game joining functions', () => {
     });
   });
 
+
   test("Attempt to join a game with a player avatar that doesn't exist", async (done) => {
     //We've not joined a game, so this should faile
     await adminConnection.emit('join-game', {gameId: game.game_id, tableId: 'table_1', playerName: 'Test', playerAvatar: 'fish', password: 'test99' });
@@ -255,6 +275,7 @@ describe('Test the game joining functions', () => {
       done();
     });
   });
+
 
   test("Attempt to join a game with the incorrect password", async (done) => {
     //We've not joined a game, so this should faile
@@ -291,6 +312,7 @@ describe('Joining a game then check we can\'t run any of the game play functions
 
   });
 
+
   test("Check we can't submit an answer before the game has started.", async (done) => {
     //We've not joined a game, so this should failed
     adminConnection.emit('submit-answer', {answerId: 438937, answerText: "Testing"});
@@ -300,6 +322,7 @@ describe('Joining a game then check we can\'t run any of the game play functions
     });
   });
 
+
   test("Check that we can't mark an answer before the game has started.", async (done) => {
     //We've not joined a game, so this should faile
     adminConnection.emit('mark-answer', { answerCorrect: true, questionId: 3647, playerUUID: 'kdjhfd-343uy4-3y43yu3' });
@@ -308,6 +331,7 @@ describe('Joining a game then check we can\'t run any of the game play functions
       done();
     });
   });
+
 
   test("Check that we can't go the next question before the game has started.", async (done) => {
     //We've not joined a game, so this should faile
@@ -331,6 +355,7 @@ describe('Start a game then test we can\'t any join game functions.\n', () => {
       done();
     });
   });
+
 
   test("Attempt to join a game as an admin player (again)", async (done) => {
     //We've not joined a game, so this should faile
@@ -411,6 +436,7 @@ describe('Check the answer marking functions are working as expected.\n', () => 
     });
   });
 
+
   test("Send no player ID and check error message", async (done) => {
     adminConnection.emit('mark-answer', { answerCorrect: true/*, playerUUID: gamePlayer.uuid*/, questionId: currentQuestion.id });
     adminConnection.once('general-errors', (errors) => {
@@ -418,6 +444,7 @@ describe('Check the answer marking functions are working as expected.\n', () => 
       done();
     });
   });
+
 
   test("Send no Answer and check error message", async (done) => {
     adminConnection.emit('mark-answer', { /*answerCorrect: true,*/ playerUUID: gamePlayer.uuid, questionId: currentQuestion.id });
@@ -427,6 +454,7 @@ describe('Check the answer marking functions are working as expected.\n', () => 
     });
   });
 
+
   test("Send invalid question ID", async (done) => {
     adminConnection.emit('mark-answer', { answerCorrect: true, playerUUID: gamePlayer.uuid, questionId: '485974' });
     adminConnection.once('general-errors', (errors) => {
@@ -434,6 +462,7 @@ describe('Check the answer marking functions are working as expected.\n', () => 
       done();
     });
   });
+
 
   test("Send invalid player ID", async (done) => {
     adminConnection.emit('mark-answer', { answerCorrect: true, playerUUID: 'hjhgjhgjhgjhg', questionId: currentQuestion.id });
@@ -443,6 +472,7 @@ describe('Check the answer marking functions are working as expected.\n', () => 
     });
   });
 
+
   test("Mark the answer as true.", async (done) => {
     adminConnection.emit('mark-answer', { answerCorrect: true, playerUUID: gamePlayer.uuid, questionId: currentQuestion.id });
     playerConnection.once('success', (success) => {
@@ -451,10 +481,12 @@ describe('Check the answer marking functions are working as expected.\n', () => 
     });
   });
 
+
   test("Check the score is correct", async (done) => {
     expect(playerOneScore).toBe(1);
     done();
   });
+
 
   test("Answer a question as the player again - After marking", async (done) => {
     await playerConnection.emit('submit-answer', {answerId: currentQuestion.id, answerText: "Testing", playerUUID: gamePlayer.uuid });
@@ -476,13 +508,15 @@ describe('Check the go to next question system.\n', () => {
     });
   });
 
-  test("Fire the load next question call, but set to false", async (done) => {
+
+  test("Load the next question", async (done) => {
     await adminConnection.emit('load-next-question', true);
     adminConnection.once('load-question', (errorMessage) => {
       expect(true).toBe(true);
       done();
     });
   });
+
 
   test("Check the current question is second in the database.", async (done) => {
     expect(currentQuestion.id).toBe(game.questions[1].id);
@@ -497,6 +531,7 @@ describe('Check the go to next question system.\n', () => {
       done();
     });
   });
+
 
   test("Mark the previous answer as true.", async (done) => {
     adminConnection.emit('mark-answer', { answerCorrect: true, playerUUID: gamePlayer.uuid, questionId: game.questions[0].id });
@@ -518,6 +553,7 @@ describe('Answer question two, mark it as incorrect.\n', () => {
     });
   });
 
+
   test("Mark the answer as wrong", async (done) => {
     adminConnection.emit('mark-answer', { answerCorrect: false, playerUUID: gamePlayer.uuid, questionId: currentQuestion.id });
     playerConnection.once('general-errors', (errors) => {
@@ -526,9 +562,99 @@ describe('Answer question two, mark it as incorrect.\n', () => {
     });
   });
 
+
   test("Check the score is correct", async (done) => {
     expect(playerOneScore).toBe(1);
     done();
+  });
+
+});
+
+describe('Complete Question three normally, check that quiz completes.\n', () => {
+
+  test("Load the next question", async (done) => {
+    await adminConnection.emit('load-next-question', true);
+    adminConnection.once('load-question', (errorMessage) => {
+      expect(true).toBe(true);
+      done();
+    });
+  });
+
+
+  test("Check the current question is second in the database.", async (done) => {
+    expect(currentQuestion.id).toBe(game.questions[2].id);
+    done();
+  });
+
+
+  test("Answer question three as (as a player)", async (done) => {
+    await playerConnection.emit('submit-answer', {answerId: currentQuestion.id, answerText: "Testing", playerUUID: gamePlayer.uuid });
+    playerConnection.once('success', (success) => {
+      expect(success).toBe("Answer successfully sent.");
+      done();
+    });
+  });
+
+
+  test("Mark the answer as correct", async (done) => {
+    adminConnection.emit('mark-answer', { answerCorrect: true, playerUUID: gamePlayer.uuid, questionId: currentQuestion.id });
+    playerConnection.once('success', (success) => {
+      expect(success).toBe(`You got '${currentQuestion.question}' correct.\n`);
+      done();
+    });
+  });
+
+
+  test("Check the score is correct", async (done) => {
+    expect(playerOneScore).toBe(2);
+    done();
+  });
+
+
+  test("Load the next question", async (done) => {
+    await adminConnection.emit('load-next-question', true);
+    adminConnection.once('game-complete', (errorMessage) => {
+      expect(true).toBe(true);
+      done();
+    });
+  });
+
+
+  test("Check the game is completed", async (done) => {
+    expect(playerGameCompleted).toBe(true);
+    expect(adminGameCompleted).toBe(true);
+    done();
+  });
+
+});
+
+
+describe('The game is over! Try to do all the things we shouldn\'t be able to.\n', () => {
+
+  test("Load the next question", async (done) => {
+    await adminConnection.emit('load-next-question', true);
+    adminConnection.once('general-errors', (errors) => {
+      expect(errors).toBe("The game is over!\n");
+      done();
+    });
+  });
+
+
+  test("Answer question three as (as a player)", async (done) => {
+    await playerConnection.emit('submit-answer', {answerId: currentQuestion.id, answerText: "Testing", playerUUID: gamePlayer.uuid });
+    playerConnection.once('general-errors', (errors) => {
+      expect(errors).toBe("The game is over!\nYou've already answered that question!\n");
+      done();
+    });
+  });
+
+
+  test("Mark the answer as correct", async (done) => {
+    adminConnection.emit('mark-answer', { answerCorrect: true, playerUUID: gamePlayer.uuid, questionId: currentQuestion.id });
+    adminConnection.once('general-errors', (errors) => {
+      expect(errors).toBe("The game is over!\n");
+      done();
+    });
   });
 
 });
