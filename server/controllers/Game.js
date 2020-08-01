@@ -77,10 +77,22 @@ class GameController {
 
   }
 
-  userAnsweredQuestion(userUuid) {
+  userAnsweredCurrentQuestion(userUuid) {
     var questionAnswered = false;
     this.answers.forEach(function(answer) { 
       if(answer.user_id == userUuid && answer.question_id == this.current_question.id) {
+        questionAnswered = true;
+      }
+    }.bind(this));
+    return questionAnswered;
+
+  }
+
+
+  userAnsweredQuestion(userUuid, questionId) {
+    var questionAnswered = false;
+    this.answers.forEach(function(answer) { 
+      if(answer.user_id == userUuid && answer.question_id == questionId) {
         questionAnswered = true;
       }
     }.bind(this));

@@ -23,6 +23,7 @@ let questions          = [];
 let currentQuestion;
 let answerForMarking;
 let gotPoint;
+let playerOneScore = 0;
 
 
 /**
@@ -93,6 +94,13 @@ beforeAll( async (done) => {
   adminConnection.on('answer-for-marking', (answer) => {
     answerForMarking = answer;
   });
+
+  playerConnection.on('updated-player-score', (playerScore, gotPoint, playerUUID) => {
+    if(gamePlayer.uuid == playerUUID) {
+      playerOneScore = playerScore;
+    }
+  });
+
 
   playerConnection.on('updated-player-score', (playerScore, pointReturner, playerUUID) => {
     if(gamePlayer.uuid == playerUUID) {
@@ -443,6 +451,11 @@ describe('Check the answer marking functions are working as expected.\n', () => 
     });
   });
 
+  test("Check the score is correct", async (done) => {
+    expect(playerOneScore).toBe(1);
+    done();
+  });
+
   test("Answer a question as the player again - After marking", async (done) => {
     await playerConnection.emit('submit-answer', {answerId: currentQuestion.id, answerText: "Testing", playerUUID: gamePlayer.uuid });
     playerConnection.once('general-errors', (errors) => {
@@ -452,8 +465,70 @@ describe('Check the answer marking functions are working as expected.\n', () => 
   });
 });
 
-describe('Check the go to next question system..\n', () => {
+describe('Check the go to next question system.\n', () => {
 
 
+  test("Attempt to go to the next question as a player - again", async (done) => {
+    await playerConnection.emit('load-next-question', true);
+    playerConnection.once('general-errors', (errorMessage) => {
+      expect(errorMessage).toBe("You are not an admin player.\n");
+      done();
+    });
+  });
+
+  test("Fire the load next question call, but set to false", async (done) => {
+    await adminConnection.emit('load-next-question', true);
+    adminConnection.once('load-question', (errorMessage) => {
+      expect(true).toBe(true);
+      done();
+    });
+  });
+
+  test("Check the current question is second in the database.", async (done) => {
+    expect(currentQuestion.id).toBe(game.questions[1].id);
+    done();
+  });
+
+
+  test("Attempt to submit the previous question again", async (done) => {
+    await playerConnection.emit('submit-answer', {answerId: game.questions[0].id, answerText: "Testing", playerUUID: gamePlayer.uuid });
+    playerConnection.once('general-errors', (errors) => {
+      expect(errors).toBe("We're not marking that question anymore. :-(\n");
+      done();
+    });
+  });
+
+  test("Mark the previous answer as true.", async (done) => {
+    adminConnection.emit('mark-answer', { answerCorrect: true, playerUUID: gamePlayer.uuid, questionId: game.questions[0].id });
+    adminConnection.once('general-errors', (errors) => {
+      expect(errors).toBe("You've already marked that question.\n");
+      done();
+    });
+  });
+
+});
+
+describe('Answer question two, mark it as incorrect.\n', () => {
+
+  test("Answer question two as (as a player)", async (done) => {
+    await playerConnection.emit('submit-answer', {answerId: currentQuestion.id, answerText: "Testing", playerUUID: gamePlayer.uuid });
+    playerConnection.once('success', (success) => {
+      expect(success).toBe("Answer successfully sent.");
+      done();
+    });
+  });
+
+  test("Mark the answer as wrong", async (done) => {
+    adminConnection.emit('mark-answer', { answerCorrect: false, playerUUID: gamePlayer.uuid, questionId: currentQuestion.id });
+    playerConnection.once('general-errors', (errors) => {
+      expect(errors).toBe(`You got '${currentQuestion.question}' wrong :*******(.\n`);
+      done();
+    });
+  });
+
+  test("Check the score is correct", async (done) => {
+    expect(playerOneScore).toBe(1);
+    done();
+  });
 
 });

@@ -268,7 +268,7 @@ server.listen(1337);
         //Validate the player.
         if(typeof socket.player == 'undefined')                           { errors += "Player not found!.\n"; }
         else if(typeof socket.player.uuid == 'undefined')                 { errors += "Player not found!.\n"; }
-        else if(socket.game.userAnsweredQuestion(socket.player.uuid))     { errors += "You've already answered that question!\n"; }
+        else if(socket.game.userAnsweredCurrentQuestion(socket.player.uuid))     { errors += "You've already answered that question!\n"; }
         if(errors) { socket.emit('general-errors', errors); }
         else {
           io.to(socket.game.admin_socket_id).emit('answer-for-marking', answerForMarking);
@@ -297,6 +297,9 @@ server.listen(1337);
         if(typeof markedAnswer.answerCorrect == 'undefined')          { errors += "Answer correct value not sent.\n"; }
         if(!socket.player.isAdmin)                                    { errors += "You are not an admin player.\n";
         }
+        if(!errors && socket.game.userAnsweredQuestion(markedAnswer.playerUUID, markedAnswer.questionId)) { //only validate this one if the most basic error functions passed.
+          errors += "You've already marked that question.\n";
+        }
       
         //If the validation passes, update the players score and sent them a confirmation message.
         if(errors) { socket.emit('general-errors', errors); }
@@ -304,8 +307,6 @@ server.listen(1337);
           var updatedPlayer = socket.game.givePlayerPoint(markedAnswer.playerUUID, markedAnswer.answerCorrect);
           socket.game.save();
           var question      = _.clone(socket.game.getQuestion(markedAnswer.questionId));
-          console.log(question);
-          console.log(updatedPlayer.socket_id);
           if(typeof updatedPlayer.score !== 'undefined') {
             socket.emit('updated-player-score', updatedPlayer.score, markedAnswer.answerCorrect, updatedPlayer.uuid);
             socket.to(socket.game.getGameId()).emit('updated-player-score', updatedPlayer.score, markedAnswer.answerCorrect, updatedPlayer.uuid);
