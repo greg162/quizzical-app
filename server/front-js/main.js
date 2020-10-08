@@ -165,6 +165,14 @@ var app = new Vue({
       this.success = successMessage;
       setTimeout(() => this.success = "", 1000);
     },
+    displayHeaderQuestion(question) {
+      if(question.type == 'divider') { return false; }
+      else                           { return true; }
+    },
+    questionIsMarkable(question) {
+      if(question.type == 'divider') { return false; }
+      else                           { return true; }
+    },
     submitAnswer(answerText) {
       buttonClickNoise.play();
       if(!answerText) { this.displayError("You must select/enter an answer!\n"); }

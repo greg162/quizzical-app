@@ -118,3 +118,7 @@ $pulse-colors: ("green": $green, "purple": $purple, "yellow": $yellow);
 .question-image {
   max-height: 600px;
 }
+
+.plaver-game-template, .current-question, .round-diver {
+  height: 100%;
+}

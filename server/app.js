@@ -68,23 +68,23 @@ const server = require('http').Server(app);
 const io     = require('socket.io')(server);
 
 //Load the controllers
-const QuestionsController = require('./controllers/Questions.js');
-const TableController     = require('./controllers/Tables.js');
-const PlayerController    = require('./controllers/Player.js');
-const GameController      = require('./controllers/Game.js');
+const QuestionsModel = require('./models/Questions.js');
+const TableModel     = require('./models/Tables.js');
+const PlayerModel    = require('./models/Player.js');
+const GameModel      = require('./models/Game.js');
 
 
 //Load the Schema
 const PlayerSchema          = require('./schema/Player.js');
-PlayerSchema.loadClass(PlayerController);
+PlayerSchema.loadClass(PlayerModel);
 const GameSchema = require('./schema/Game.js');
-GameSchema.loadClass(GameController);
+GameSchema.loadClass(GameModel);
 
 server.listen(1337);
 
 
   let Game            = mongoose.model('Game', GameSchema);
-  let tables          = new TableController;
+  let tables          = new TableModel;
 
   io.on('connection', (socket) => {
 
@@ -124,7 +124,7 @@ server.listen(1337);
                   socket.emit('game-started', true);
                   socket.emit('load-question', socket.game.current_question);
                   if(socket.player.isAdmin) {
-                    socket.questions = new QuestionsController(socket.game.questions, socket.game.current_question_key);
+                    socket.questions = new QuestionsModel(socket.game.questions, socket.game.current_question_key);
                     socket.questions.nextQuestion++;
                     socket.questions.checkIfQuestions();
                   }
@@ -191,7 +191,7 @@ server.listen(1337);
 
 
         if(socket.game.questions) {
-          socket.questions = new QuestionsController(socket.game.questions, socket.game.current_question_key);
+          socket.questions = new QuestionsModel(socket.game.questions, socket.game.current_question_key);
 
           socket.game.current_question     = socket.questions.loadNextQuestion();
           socket.game.current_question_key = socket.questions.nextQuestion - 1;

@@ -3,7 +3,7 @@
 const io             = require('socket.io-client');
 var config           = require('./_config');
 var mongoose         = require('mongoose');
-const GameController = require('./controllers/Game.js');
+const GameController = require('./models/Game.js');
 const GameSchema     = require('./schema/Game.js');
 var _                = require('lodash');
 
